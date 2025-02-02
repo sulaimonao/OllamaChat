@@ -1,3 +1,4 @@
+// frontend/src/App.js
 import React, { useState, useEffect } from 'react';
 import {
   Container,
@@ -9,6 +10,7 @@ import {
   ListItemButton,
   ListItemText,
   Divider,
+  CircularProgress
 } from '@mui/material';
 import ChatWindow from './components/ChatWindow';
 import MessageInput from './components/MessageInput';
@@ -20,6 +22,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [sessions, setSessions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Create a new session on initial load if one doesn't exist.
   useEffect(() => {
@@ -35,6 +38,7 @@ function App() {
 
   // Handle sending a message.
   const handleSendMessage = async (messageText) => {
+    setIsLoading(true);
     try {
       const response = await sendChatMessage(sessionId, selectedModel, messageText);
       // Append both the user's message and the model's response.
@@ -46,6 +50,8 @@ function App() {
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Error sending message');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -73,7 +79,7 @@ function App() {
                 <div key={session.id}>
                   <ListItem disablePadding>
                     <ListItemButton onClick={() => loadChatHistory(session.id)}>
-                    <ListItemText primary={`Session ${session.id}`} />
+                      <ListItemText primary={`Session ${session.id}`} />
                     </ListItemButton>
                   </ListItem>
                   <Divider />
@@ -95,7 +101,7 @@ function App() {
           >
             <Typography variant="h6">Chat Session {sessionId}</Typography>
             <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} />
-            <ChatWindow messages={messages} />
+            <ChatWindow messages={messages} isLoading={isLoading} />
             <MessageInput onSendMessage={handleSendMessage} />
           </Paper>
         </Grid>

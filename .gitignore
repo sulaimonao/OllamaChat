@@ -2,3 +2,5 @@ backend/chat.db
 /frontend/node_modules/.cache
 *.pack
 /frontend/node_modules
+*.db
+/frontend/node_modules
