@@ -40,6 +40,14 @@ project/
 
 ## Setup Instructions
 
+Download the Ollama Client from [https://ollama.com/](https://ollama.com/).
+
+Open a terminal window and use the following command to install models:
+
+```sh
+ollama pull {model choice}
+```
+
 ### Backend
 1. Navigate to the `backend` folder:
    ```bash
