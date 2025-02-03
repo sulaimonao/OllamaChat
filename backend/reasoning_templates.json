@@ -1,0 +1,9 @@
+{
+    "logical": "Show your logical steps in arriving at the answer.",
+    "knowledge": "Explain how your knowledge of the world informs your answer.",
+    "step_by_step": "Provide a detailed, numbered list of the steps you take to solve this problem.",
+    "alternatives": "Discuss any other possible solutions or approaches you considered, and explain why you chose this one.",
+    "comparative": "Compare and contrast different perspectives before reaching your conclusion.",
+    "explanatory": "Break down the problem into its fundamental concepts and explain it as if teaching a beginner.",
+    "default": "Explain your reasoning before giving the final answer."
+}

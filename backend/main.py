@@ -1,5 +1,6 @@
 #backend/main.py
 import os
+import json
 import psutil
 import platform
 import GPUtil  # Only if you have a GPU and GPUtil installed
@@ -44,6 +45,53 @@ def call_ollama_cli(model: str, prompt: str) -> str:
     except subprocess.CalledProcessError as e:
         logging.error(f"Error calling Ollama CLI: {e.stderr}")
         raise Exception(f"Ollama CLI error: {e.stderr}")
+
+# ✅ Load reasoning templates ONCE at startup to avoid redundant file reads
+def load_reasoning_templates():
+    with open("reasoning_templates.json", "r") as file:
+        return json.load(file)
+
+reasoning_templates = load_reasoning_templates()  # Load once at startup
+
+def auto_select_reasoning(question):
+    if "why" in question.lower():
+        return "explanatory"
+    elif "compare" in question.lower() or "difference" in question.lower():
+        return "comparative"
+    elif "steps" in question.lower() or "process" in question.lower():
+        return "step_by_step"
+    elif "alternatives" in question.lower():
+        return "alternatives"
+    else:
+        return "default"
+
+def generate_reasoning_prompt(question, user_selected_reasoning=None):
+    reasoning_style = user_selected_reasoning or auto_select_reasoning(question)
+    template = reasoning_templates.get(reasoning_style, reasoning_templates["default"])
+    return f"I want to understand how you arrive at your answer. {template} Question: {question}"
+
+# ✅ Fix `call_ollama_with_reasoning` to properly support MULTIPLE models
+def call_ollama_with_reasoning(model, question, reasoning_style=None):
+    prompt = generate_reasoning_prompt(question, reasoning_style)
+
+    command = ["ollama", "run", model, prompt]  # ✅ Ensure model is correctly passed
+    
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error calling Ollama CLI: {e.stderr}")
+        return "Error: Could not process your request."
+
+def process_ollama_response(response):
+    if "Final Answer:" in response:
+        parts = response.split("Final Answer:")
+        reasoning = parts[0].strip()
+        answer = parts[1].strip()
+    else:
+        reasoning = response
+        answer = "No explicit final answer found."
+    return {"reasoning": reasoning, "answer": answer}
 
 @app.post("/session", response_model=schemas.Session)
 def create_new_session(db: Session = Depends(get_db)):
@@ -90,7 +138,7 @@ def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(g
     Receive a chat message, call the selected language model via the CLI,
     save both the user message and model response, and return the responses.
     """
-    # Ensure that the session exists
+
     session_obj = crud.get_session(db, chat_request.session_id)
     if session_obj is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -98,21 +146,22 @@ def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(g
     # Save the user's message
     crud.create_message(db, session_obj.id, sender="user", content=chat_request.message)
 
-    # Call the CLI to get the model's response
-    try:
-        model_reply = call_ollama_cli(chat_request.model_id, chat_request.message)
-    except Exception as e:
-        logging.error(f"Error calling Ollama CLI: {e}")
-        raise HTTPException(status_code=500, detail="Error communicating with the language model")
+    # ✅ Ensure model selection works properly
+    model = chat_request.model_id
+    reasoning_style = chat_request.reasoning_style  
+    ollama_response = call_ollama_with_reasoning(model, chat_request.message, reasoning_style)
 
-    # Save the model's response
-    crud.create_message(db, session_obj.id, sender="model", content=model_reply)
+    response_data = process_ollama_response(ollama_response)
+
+    # Save model's response
+    crud.create_message(db, session_obj.id, sender="model", content=response_data["answer"])
 
     return schemas.ChatResponse(
         session_id=session_obj.id,
         user_message=chat_request.message,
-        model_message=model_reply,
-        model_id=chat_request.model_id,
+        model_message=response_data["answer"],
+        model_reasoning=response_data["reasoning"],
+        model_id=model,
     )
 
 @app.get("/chat/{session_id}", response_model=schemas.Session)
