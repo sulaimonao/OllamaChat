@@ -50,7 +50,7 @@ def load_reasoning_templates():
 
 reasoning_templates = load_reasoning_templates()
 
-reasoning_models = {"deepseek-r1", "gemma2", "codegemma"}
+reasoning_models = {"deepseek-r1" } #add more local reasoning models here
 
 def auto_select_reasoning(question):
     if "why" in question.lower():

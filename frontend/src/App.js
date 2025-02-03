@@ -1,4 +1,4 @@
-// frontend/src/App.js
+import './App.css';
 import React, { useState, useEffect } from 'react';
 import { Container, Grid, Paper, Typography, Divider } from '@mui/material';
 import ChatWindow from './components/ChatWindow';
@@ -55,13 +55,9 @@ function App() {
   return (
     <Container maxWidth="lg" style={{ marginTop: '20px' }}>
       <Grid container spacing={2}>
-        {/* Hardware Metrics Section */}
-        <Grid item xs={12}>
-          <HardwareMetrics />
-        </Grid>
-        {/* Chat History Sidebar */}
-        <Grid item xs={12} md={3}>
-          <Paper style={{ padding: '10px', height: '80vh', overflowY: 'auto' }}>
+        {/* Chat History Sidebar with Hardware Metrics */}
+        <Grid item xs={12} md={4} style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
+          <Paper style={{ padding: '10px', flex: 3, overflowY: 'auto' }}>
             <Typography variant="h6">Chat Sessions</Typography>
             <Divider sx={{ my: 1 }} />
             {sessions.map((session) => (
@@ -73,9 +69,16 @@ function App() {
               </div>
             ))}
           </Paper>
+
+          {/* Hardware Metrics - Color Coded and Scrollable */}
+          <Paper style={{ padding: '10px', flex: 1, marginTop: '10px', overflowY: 'auto', backgroundColor: '#f8f9fa' }}>
+            <Typography variant="h6" style={{ color: '#007bff' }}>Hardware Metrics</Typography>
+            <HardwareMetrics />
+          </Paper>
         </Grid>
+
         {/* Chat Window */}
-        <Grid item xs={12} md={9}>
+        <Grid item xs={12} md={8}>
           <Paper style={{ padding: '10px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6">Chat Session {sessionId}</Typography>
             <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} />
