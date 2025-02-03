@@ -6,8 +6,6 @@ import ChatWindow from './components/ChatWindow';
 import MessageInput from './components/MessageInput';
 import ModelSelector from './components/ModelSelector';
 import HardwareMetrics from './components/HardwareMetrics';
-import WebSearch from './components/WebSearch';
-import FileUpload from './components/FileUpload';
 import { createSession, getChatHistory, sendChatMessage } from './api';
 
 function App() {
@@ -55,11 +53,6 @@ function App() {
     }
   };
 
-  // Callback to add a new message to the conversation (from web search or file upload)
-  const addMessage = (newMessage) => {
-    setMessages((prev) => [...prev, newMessage]);
-  };
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Grid container spacing={2}>
@@ -70,9 +63,7 @@ function App() {
             <Divider sx={{ my: 1 }} />
             {sessions.map((session) => (
               <Box key={session.id} sx={{ py: 0.5, cursor: 'pointer' }} onClick={() => loadChatHistory(session.id)}>
-                <Typography variant="body2">
-                  Session {session.id}
-                </Typography>
+                <Typography variant="body2">Session {session.id}</Typography>
                 <Divider />
               </Box>
             ))}
@@ -90,9 +81,6 @@ function App() {
             <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} sx={{ mb: 2 }} />
             <ChatWindow messages={messages} isLoading={isLoading} sx={{ flexGrow: 1 }} />
             <MessageInput onSendMessage={handleSendMessage} />
-            {/* Below, the web search and file upload components integrate into the conversation */}
-            <WebSearch onAddMessage={addMessage} />
-            <FileUpload onAddMessage={addMessage} />
           </Paper>
         </Grid>
       </Grid>

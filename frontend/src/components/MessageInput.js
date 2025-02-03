@@ -1,33 +1,103 @@
-import React, { useState } from 'react';
-import { Box, TextField, Button } from '@mui/material';
+// frontend/src/components/MessageInput.js
+import React, { useState, useRef } from 'react';
+import { Box, TextField, Button, IconButton, Tooltip } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import SearchIcon from '@mui/icons-material/Search';
+import axios from 'axios';
 
 const MessageInput = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [searchResult, setSearchResult] = useState('');
+  const fileInputRef = useRef(null);
 
-  const handleSend = () => {
-    if (message.trim() !== '') {
-      onSendMessage(message);
+  // Trigger the hidden file input
+  const handleFileIconClick = () => {
+    fileInputRef.current.click();
+  };
+
+  // When a file is chosen, store it in state
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachedFile(e.target.files[0]);
+    }
+  };
+
+  // When the search icon is clicked, prompt for a search query and call the /search endpoint
+  const handleSearchIconClick = async () => {
+    const query = prompt("Enter web search query:");
+    if (query) {
+      try {
+        const response = await axios.get("http://127.0.0.1:8000/search", { params: { query } });
+        // For simplicity, use the abstract as the search result summary.
+        const abstract = response.data.abstract || "No abstract available.";
+        // Format the result to be appended to the message.
+        setSearchResult(`[WEB_SEARCH: ${abstract}]`);
+      } catch (error) {
+        console.error("Error during web search:", error);
+      }
+    }
+  };
+
+  const handleSend = async () => {
+    let finalMessage = message;
+
+    // If a file is attached, upload it and append file info to the message
+    if (attachedFile) {
+      const formData = new FormData();
+      formData.append('file', attachedFile);
+      try {
+        const response = await axios.post("http://127.0.0.1:8000/upload", formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        // Append the file location to the message
+        finalMessage += `\n[FILE: ${response.data.location}]`;
+      } catch (error) {
+        console.error("File upload error:", error);
+      }
+      // Clear the attached file after uploading
+      setAttachedFile(null);
+    }
+
+    // If there is a search result, append it to the message
+    if (searchResult) {
+      finalMessage += `\n${searchResult}`;
+      setSearchResult('');
+    }
+
+    if (finalMessage.trim() !== '') {
+      onSendMessage(finalMessage);
       setMessage('');
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSend();
-    }
-  };
-
   return (
-    <Box sx={{ display: 'flex', marginTop: 2 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
       <TextField
         fullWidth
         variant="outlined"
         placeholder="Type your message..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        onKeyPress={handleKeyPress}
       />
-      <Button variant="contained" color="primary" onClick={handleSend} sx={{ marginLeft: 1 }}>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+      <Tooltip title="Attach File">
+        <IconButton onClick={handleFileIconClick}>
+          <UploadFileIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Web Search">
+        <IconButton onClick={handleSearchIconClick}>
+          <SearchIcon />
+        </IconButton>
+      </Tooltip>
+      <Button variant="contained" onClick={handleSend} sx={{ marginLeft: 1 }}>
         Send
       </Button>
     </Box>

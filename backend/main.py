@@ -260,8 +260,6 @@ def get_hardware_metrics():
         logging.error(f"Error collecting metrics: {e}")
         raise HTTPException(status_code=500, detail="Error collecting hardware metrics")
 
-# ... existing imports and code ...
-
 @app.get("/search")
 def web_search(query: str = Query(..., description="Search query")):
     try:
