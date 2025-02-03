@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 pydantic
 requests
+psutil 
+GPUtil

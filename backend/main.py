@@ -1,5 +1,8 @@
+#backend/main.py
 import os
-import json
+import psutil
+import platform
+import GPUtil  # Only if you have a GPU and GPUtil installed
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -26,7 +29,6 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 
-# Dependency to get a DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -53,21 +55,35 @@ def create_new_session(db: Session = Depends(get_db)):
 
 @app.get("/models")
 def get_installed_models():
-    # Use os.path.expanduser to get the full path to the models directory
     models_dir = os.path.expanduser("~/.ollama/models/manifests/registry.ollama.ai/library")
+    
     try:
         if not os.path.exists(models_dir):
             raise HTTPException(status_code=500, detail="Models directory not found")
-        # List only directories (model folders) in the directory
-        model_names = [
-            d for d in os.listdir(models_dir)
-            if os.path.isdir(os.path.join(models_dir, d))
-        ]
-        return {"models": model_names}
+
+        model_list = []
+
+        # Iterate through all directories in the models folder
+        for model_folder in os.listdir(models_dir):
+            model_path = os.path.join(models_dir, model_folder)
+            
+            # If it's a directory, check inside for submodels
+            if os.path.isdir(model_path):
+                sub_models = [
+                    f"{model_folder}:{file}" for file in os.listdir(model_path)
+                    if os.path.isfile(os.path.join(model_path, file))
+                ]
+                if sub_models:
+                    model_list.extend(sub_models)
+                else:
+                    model_list.append(model_folder)  # If no files, just list the model name
+        
+        return {"models": model_list}
+    
     except Exception as e:
         logging.error(f"Error retrieving models: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving installed models")
-
+        
 @app.post("/chat", response_model=schemas.ChatResponse)
 def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
     """
@@ -108,3 +124,67 @@ def get_chat_history(session_id: int, db: Session = Depends(get_db)):
     if session_obj is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session_obj
+
+@app.get("/metrics")
+def get_hardware_metrics():
+    try:
+        # CPU metrics
+        cpu_usage = psutil.cpu_percent(interval=1)  # overall CPU percentage
+        per_core_usage = psutil.cpu_percent(interval=1, percpu=True)
+        cpu_freq = psutil.cpu_freq().current if psutil.cpu_freq() else None
+        
+        # Memory metrics
+        virtual_mem = psutil.virtual_memory()
+        memory_usage_percent = virtual_mem.percent
+        memory_used = virtual_mem.used
+        memory_total = virtual_mem.total
+
+        # Disk I/O (you can expand this as needed)
+        disk_io = psutil.disk_io_counters()
+        disk_read = disk_io.read_bytes if disk_io else None
+        disk_write = disk_io.write_bytes if disk_io else None
+
+        # GPU metrics (if available)
+        gpu_metrics = []
+        try:
+            gpus = GPUtil.getGPUs()
+            for gpu in gpus:
+                gpu_metrics.append({
+                    "name": gpu.name,
+                    "load": gpu.load * 100,  # as percent
+                    "memoryUsed": gpu.memoryUsed,
+                    "memoryTotal": gpu.memoryTotal,
+                    "temperature": gpu.temperature,
+                })
+        except Exception as gpu_error:
+            logging.warning(f"GPU metrics not available: {gpu_error}")
+
+        # Equipment information
+        system_info = {
+            "cpu_model": platform.processor(),
+            "machine": platform.machine(),
+            "system": platform.system(),
+            "platform": platform.platform(),
+        }
+
+        return {
+            "cpu": {
+                "usage_percent": cpu_usage,
+                "per_core_usage": per_core_usage,
+                "frequency": cpu_freq,
+            },
+            "memory": {
+                "usage_percent": memory_usage_percent,
+                "used": memory_used,
+                "total": memory_total,
+            },
+            "disk": {
+                "read_bytes": disk_read,
+                "write_bytes": disk_write,
+            },
+            "gpu": gpu_metrics,
+            "system_info": system_info,
+        }
+    except Exception as e:
+        logging.error(f"Error collecting metrics: {e}")
+        raise HTTPException(status_code=500, detail="Error collecting hardware metrics")

@@ -6,3 +6,4 @@ backend/chat.db
 /frontend/node_modules
 .DS_Store
 backend/chat.db
+/backend/__pycache__
