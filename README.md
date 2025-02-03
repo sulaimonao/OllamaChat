@@ -51,7 +51,7 @@ ollama pull {model choice}
 ### Backend
 1. Navigate to the `backend` folder:
    ```bash
-   cd project/backend
+   cd OllamaChat/backend
    ```
 2. (Optional but recommended) Create and activate a virtual environment:
    ```bash
