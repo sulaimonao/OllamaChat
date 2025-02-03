@@ -1,10 +1,13 @@
+// frontend/src/App.js
 import './App.css';
 import React, { useState, useEffect } from 'react';
-import { Container, Grid, Paper, Typography, Divider } from '@mui/material';
+import { Container, Grid, Paper, Typography, Divider, Box } from '@mui/material';
 import ChatWindow from './components/ChatWindow';
 import MessageInput from './components/MessageInput';
 import ModelSelector from './components/ModelSelector';
 import HardwareMetrics from './components/HardwareMetrics';
+import WebSearch from './components/WebSearch';
+import FileUpload from './components/FileUpload';
 import { createSession, getChatHistory, sendChatMessage } from './api';
 
 function App() {
@@ -52,16 +55,21 @@ function App() {
     }
   };
 
+  // Callback to add a new message to the conversation (from web search or file upload)
+  const addMessage = (newMessage) => {
+    setMessages((prev) => [...prev, newMessage]);
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 4 }}> {/* Use sx for styling */}
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Grid container spacing={2}>
-        {/* Chat History Sidebar with Hardware Metrics */}
-        <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', height: '75vh' }}> {/* Adjusted height */}
-          <Paper elevation={3} sx={{ p: 2, flex: 3, overflowY: 'auto' }}> {/* Use sx and elevation */}
-            <Typography variant="h6" gutterBottom>Chat Sessions</Typography> {/* gutterBottom for spacing */}
-            <Divider />
+        {/* Sidebar: Chat Sessions and Hardware Metrics */}
+        <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', height: '75vh' }}>
+          <Paper elevation={3} sx={{ p: 2, flex: 3, overflowY: 'auto' }}>
+            <Typography variant="h6" gutterBottom>Chat Sessions</Typography>
+            <Divider sx={{ my: 1 }} />
             {sessions.map((session) => (
-              <Box key={session.id} sx={{ py: 0.5, cursor: 'pointer' }} onClick={() => loadChatHistory(session.id)}> {/* Box for better styling */}
+              <Box key={session.id} sx={{ py: 0.5, cursor: 'pointer' }} onClick={() => loadChatHistory(session.id)}>
                 <Typography variant="body2">
                   Session {session.id}
                 </Typography>
@@ -69,21 +77,22 @@ function App() {
               </Box>
             ))}
           </Paper>
-
-          {/* Hardware Metrics - Color Coded and Scrollable */}
-          <Paper elevation={3} sx={{ p: 2, flex: 1, mt: 2, overflowY: 'auto', bgcolor: '#f8f9fa' }}> {/* sx for styling */}
-            <Typography variant="h6" color="primary" gutterBottom>Hardware Metrics</Typography> {/* Color with MUI theme */}
+          <Paper elevation={3} sx={{ p: 2, flex: 1, mt: 2, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
+            <Typography variant="h6" color="primary" gutterBottom>Hardware Metrics</Typography>
             <HardwareMetrics />
           </Paper>
         </Grid>
 
-        {/* Chat Window */}
+        {/* Chat Interface */}
         <Grid item xs={12} md={8}>
-          <Paper elevation={3} sx={{ p: 2, height: '75vh', display: 'flex', flexDirection: 'column' }}> {/* Adjusted height and elevation */}
-            <Typography variant="h6" gutterBottom>Chat Session {sessionId}</Typography> {/* gutterBottom for spacing */}
-            <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} sx={{ mb: 2 }} /> {/* Margin bottom with sx */}
-            <ChatWindow messages={messages} isLoading={isLoading} sx={{ flexGrow: 1 }} /> {/* flexGrow to fill space */}
+          <Paper elevation={3} sx={{ p: 2, height: '75vh', display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h6" gutterBottom>Chat Session {sessionId}</Typography>
+            <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} sx={{ mb: 2 }} />
+            <ChatWindow messages={messages} isLoading={isLoading} sx={{ flexGrow: 1 }} />
             <MessageInput onSendMessage={handleSendMessage} />
+            {/* Below, the web search and file upload components integrate into the conversation */}
+            <WebSearch onAddMessage={addMessage} />
+            <FileUpload onAddMessage={addMessage} />
           </Paper>
         </Grid>
       </Grid>

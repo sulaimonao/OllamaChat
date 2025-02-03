@@ -1,10 +1,12 @@
 #backend/main.py
 import os
 import json
+import shutil
 import psutil
 import platform
-import GPUtil  # Only if you have a GPU and GPUtil installed
-from fastapi import FastAPI, HTTPException, Depends
+import requests
+import GPUtil 
+from fastapi import FastAPI, HTTPException, Depends, Query, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import subprocess
@@ -27,6 +29,9 @@ app.add_middleware(
 )
 
 logging.basicConfig(level=logging.INFO)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def get_db():
     db = SessionLocal()
@@ -100,26 +105,46 @@ def process_ollama_response(response):
 
 @app.post("/chat", response_model=schemas.ChatResponse)
 def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    """
+    Receive a chat message, prepend context from the conversation history,
+    call the selected language model via the CLI, save both the user message and
+    model response, and return the responses.
+    """
+    # Ensure that the session exists
     session_obj = crud.get_session(db, chat_request.session_id)
     if session_obj is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
+    # Save the user's message
     crud.create_message(db, session_obj.id, sender="user", content=chat_request.message)
-    
-    model = chat_request.model_id
-    reasoning_style = getattr(chat_request, "reasoning_style", None)
-    
-    ollama_response = call_ollama_with_reasoning(model, chat_request.message, reasoning_style)
-    response_data = process_ollama_response(ollama_response)
-    
-    crud.create_message(db, session_obj.id, sender="model", content=response_data["answer"])
-    
+
+    # Retrieve context: for example, the last 5 messages
+    history = crud.get_messages(db, session_obj.id)
+    context_messages = []
+    for msg in history[-5:]:
+        # Format each message as "User: ..." or "Model: ..."
+        prefix = "You:" if msg.sender == "user" else "Model:"
+        context_messages.append(f"{prefix} {msg.content}")
+    context = "\n".join(context_messages)
+
+    # Build a prompt that includes context (if desired)
+    full_prompt = f"Context:\n{context}\n\nNew message: {chat_request.message}"
+
+    # Call the CLI with the full prompt
+    try:
+        model_reply = call_ollama_cli(chat_request.model_id, full_prompt)
+    except Exception as e:
+        logging.error(f"Error calling Ollama CLI: {e}")
+        raise HTTPException(status_code=500, detail="Error communicating with the language model")
+
+    # Save the model's response
+    crud.create_message(db, session_obj.id, sender="model", content=model_reply)
+
     return schemas.ChatResponse(
         session_id=session_obj.id,
         user_message=chat_request.message,
-        model_message=response_data["answer"],
-        model_reasoning=response_data["reasoning"] if model.split(":")[0] in reasoning_models else None,
-        model_id=model,
+        model_message=model_reply,
+        model_id=chat_request.model_id,
     )
 
 @app.post("/session", response_model=schemas.Session)
@@ -234,3 +259,36 @@ def get_hardware_metrics():
     except Exception as e:
         logging.error(f"Error collecting metrics: {e}")
         raise HTTPException(status_code=500, detail="Error collecting hardware metrics")
+
+# ... existing imports and code ...
+
+@app.get("/search")
+def web_search(query: str = Query(..., description="Search query")):
+    try:
+        response = requests.get("https://api.duckduckgo.com", params={
+            "q": query,
+            "format": "json",
+            "no_redirect": 1,
+            "no_html": 1,
+        })
+        response.raise_for_status()
+        data = response.json()
+        results = {
+            "abstract": data.get("AbstractText", ""),
+            "related_topics": data.get("RelatedTopics", [])
+        }
+        return results
+    except Exception as e:
+        logging.error(f"Error performing web search: {e}")
+        raise HTTPException(status_code=500, detail="Web search failed")
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_location, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        return {"filename": file.filename, "location": file_location}
+    except Exception as e:
+        logging.error(f"Error uploading file: {e}")
+        raise HTTPException(status_code=500, detail="File upload failed")
