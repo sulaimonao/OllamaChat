@@ -14,15 +14,13 @@ import models
 import schemas
 from database import SessionLocal, engine
 
-# Create the database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Enable CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,14 +42,15 @@ def call_ollama_cli(model: str, prompt: str) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         logging.error(f"Error calling Ollama CLI: {e.stderr}")
-        raise Exception(f"Ollama CLI error: {e.stderr}")
+        return "Error: Could not process your request."
 
-# ✅ Load reasoning templates ONCE at startup to avoid redundant file reads
 def load_reasoning_templates():
     with open("reasoning_templates.json", "r") as file:
         return json.load(file)
 
-reasoning_templates = load_reasoning_templates()  # Load once at startup
+reasoning_templates = load_reasoning_templates()
+
+reasoning_models = {"deepseek-r1", "gemma2", "codegemma"}
 
 def auto_select_reasoning(question):
     if "why" in question.lower():
@@ -68,13 +67,19 @@ def auto_select_reasoning(question):
 def generate_reasoning_prompt(question, user_selected_reasoning=None):
     reasoning_style = user_selected_reasoning or auto_select_reasoning(question)
     template = reasoning_templates.get(reasoning_style, reasoning_templates["default"])
-    return f"I want to understand how you arrive at your answer. {template} Question: {question}"
+    return f"""I want to understand how you arrive at your answer. {template} Question: {question}
 
-# ✅ Fix `call_ollama_with_reasoning` to properly support MULTIPLE models
+**Answer:**
+
+**Reasoning:**"""
+
 def call_ollama_with_reasoning(model, question, reasoning_style=None):
-    prompt = generate_reasoning_prompt(question, reasoning_style)
-
-    command = ["ollama", "run", model, prompt]  # ✅ Ensure model is correctly passed
+    if model.split(":")[0] in reasoning_models:
+        prompt = generate_reasoning_prompt(question, reasoning_style)
+    else:
+        prompt = question
+    
+    command = ["ollama", "run", model, prompt]
     
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -84,14 +89,38 @@ def call_ollama_with_reasoning(model, question, reasoning_style=None):
         return "Error: Could not process your request."
 
 def process_ollama_response(response):
-    if "Final Answer:" in response:
-        parts = response.split("Final Answer:")
-        reasoning = parts[0].strip()
-        answer = parts[1].strip()
-    else:
-        reasoning = response
-        answer = "No explicit final answer found."
-    return {"reasoning": reasoning, "answer": answer}
+    try:
+        answer_start = response.index("**Answer:**") + len("**Answer:**")
+        reasoning_start = response.index("**Reasoning:**") + len("**Reasoning:**")
+        answer = response[answer_start:reasoning_start].strip()
+        reasoning = response[reasoning_start:].strip()
+        return {"reasoning": reasoning, "answer": answer}
+    except ValueError:
+        return {"reasoning": "Could not parse response. Check model output.", "answer": response.strip()}
+
+@app.post("/chat", response_model=schemas.ChatResponse)
+def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    session_obj = crud.get_session(db, chat_request.session_id)
+    if session_obj is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    crud.create_message(db, session_obj.id, sender="user", content=chat_request.message)
+    
+    model = chat_request.model_id
+    reasoning_style = getattr(chat_request, "reasoning_style", None)
+    
+    ollama_response = call_ollama_with_reasoning(model, chat_request.message, reasoning_style)
+    response_data = process_ollama_response(ollama_response)
+    
+    crud.create_message(db, session_obj.id, sender="model", content=response_data["answer"])
+    
+    return schemas.ChatResponse(
+        session_id=session_obj.id,
+        user_message=chat_request.message,
+        model_message=response_data["answer"],
+        model_reasoning=response_data["reasoning"] if model.split(":")[0] in reasoning_models else None,
+        model_id=model,
+    )
 
 @app.post("/session", response_model=schemas.Session)
 def create_new_session(db: Session = Depends(get_db)):
@@ -132,38 +161,6 @@ def get_installed_models():
         logging.error(f"Error retrieving models: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving installed models")
         
-@app.post("/chat", response_model=schemas.ChatResponse)
-def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
-    """
-    Receive a chat message, call the selected language model via the CLI,
-    save both the user message and model response, and return the responses.
-    """
-
-    session_obj = crud.get_session(db, chat_request.session_id)
-    if session_obj is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    # Save the user's message
-    crud.create_message(db, session_obj.id, sender="user", content=chat_request.message)
-
-    # ✅ Ensure model selection works properly
-    model = chat_request.model_id
-    reasoning_style = chat_request.reasoning_style  
-    ollama_response = call_ollama_with_reasoning(model, chat_request.message, reasoning_style)
-
-    response_data = process_ollama_response(ollama_response)
-
-    # Save model's response
-    crud.create_message(db, session_obj.id, sender="model", content=response_data["answer"])
-
-    return schemas.ChatResponse(
-        session_id=session_obj.id,
-        user_message=chat_request.message,
-        model_message=response_data["answer"],
-        model_reasoning=response_data["reasoning"],
-        model_id=model,
-    )
-
 @app.get("/chat/{session_id}", response_model=schemas.Session)
 def get_chat_history(session_id: int, db: Session = Depends(get_db)):
     """
