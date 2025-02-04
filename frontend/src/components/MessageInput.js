@@ -36,20 +36,19 @@ const MessageInput = ({ onSendMessage }) => {
   };
 
   const handleSend = async () => {
-    let fileInfo = null; // Initialize fileInfo
+    let fileInfo = null;
 
-    // If a file is attached, upload it
     if (attachedFile) {
       const formData = new FormData();
       formData.append('file', attachedFile);
       try {
         const response = await uploadFile(formData);
-        // Instead of appending to the message, store the file info separately
-        fileInfo = `[FILE: ${response.location}]`;
+        // Trim whitespace from the file location
+        fileInfo = `[FILE:${response.data.location.trim()}]`; 
       } catch (error) {
         console.error("File upload error:", error);
       }
-      setAttachedFile(null); // Clear the attached file after uploading
+      setAttachedFile(null);
     }
 
     let finalMessage = message;
