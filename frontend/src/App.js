@@ -18,17 +18,19 @@ function App() {
   useEffect(() => {
     if (!sessionId) {
       createSession().then((newSession) => {
-        setSessionId(newSession.id);
-        setMessages([]);
-        setSessions((prev) => [...prev, newSession]);
+        if (newSession) {
+          setSessionId(newSession.id);
+          setMessages([]);
+          setSessions((prev) => [...prev, newSession]);
+        }
       });
     }
   }, [sessionId]);
 
-  const handleSendMessage = async (messageText) => {
+  const handleSendMessage = async (messageText, reasoning_style) => {
     setIsLoading(true);
     try {
-      const response = await sendChatMessage(sessionId, selectedModel, messageText);
+      const response = await sendChatMessage(sessionId, selectedModel, messageText, reasoning_style);
       setMessages((prev) => [
         ...prev,
         { sender: 'user', content: response.user_message },
@@ -45,8 +47,10 @@ function App() {
   const loadChatHistory = async (sessionId) => {
     try {
       const sessionData = await getChatHistory(sessionId);
-      setSessionId(sessionData.id);
-      setMessages(sessionData.messages);
+      if (sessionData) {
+        setSessionId(sessionData.id);
+        setMessages(sessionData.messages);
+      }
     } catch (error) {
       console.error('Error fetching chat history:', error);
       alert('Error fetching chat history');

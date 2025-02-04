@@ -1,14 +1,15 @@
 // frontend/src/components/MessageInput.js
 import React, { useState, useRef } from 'react';
-import { Box, TextField, Button, IconButton, Tooltip } from '@mui/material';
+import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
-import axios from 'axios';
+import { uploadFile, webSearch } from '../api';  // Import from api.js
 
 const MessageInput = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
+  const [reasoningStyle, setReasoningStyle] = useState('');
   const fileInputRef = useRef(null);
 
   // Trigger the hidden file input
@@ -28,9 +29,9 @@ const MessageInput = ({ onSendMessage }) => {
     const query = prompt("Enter web search query:");
     if (query) {
       try {
-        const response = await axios.get("http://127.0.0.1:8000/search", { params: { query } });
+        const data = await webSearch(query); // Use webSearch from api.js
         // For simplicity, use the abstract as the search result summary.
-        const abstract = response.data.abstract || "No abstract available.";
+        const abstract = data.abstract || "No abstract available.";
         // Format the result to be appended to the message.
         setSearchResult(`[WEB_SEARCH: ${abstract}]`);
       } catch (error) {
@@ -47,9 +48,7 @@ const MessageInput = ({ onSendMessage }) => {
       const formData = new FormData();
       formData.append('file', attachedFile);
       try {
-        const response = await axios.post("http://127.0.0.1:8000/upload", formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const response = await uploadFile(formData); // Use uploadFile from api.js
         // Append the file location to the message
         finalMessage += `\n[FILE: ${response.data.location}]`;
       } catch (error) {
@@ -66,9 +65,13 @@ const MessageInput = ({ onSendMessage }) => {
     }
 
     if (finalMessage.trim() !== '') {
-      onSendMessage(finalMessage);
+      onSendMessage(finalMessage, reasoningStyle);
       setMessage('');
     }
+  };
+
+  const handleReasoningStyleChange = (event) => {
+    setReasoningStyle(event.target.value);
   };
 
   return (
@@ -97,6 +100,23 @@ const MessageInput = ({ onSendMessage }) => {
           <SearchIcon />
         </IconButton>
       </Tooltip>
+      <FormControl sx={{ minWidth: 120, ml: 1 }}>
+        <InputLabel>Reasoning</InputLabel>
+        <Select
+          value={reasoningStyle}
+          onChange={handleReasoningStyleChange}
+          label="Reasoning"
+        >
+          <MenuItem value="">
+            <em>None</em>
+          </MenuItem>
+          <MenuItem value="default">Default</MenuItem>
+          <MenuItem value="explanatory">Explanatory</MenuItem>
+          <MenuItem value="comparative">Comparative</MenuItem>
+          <MenuItem value="step_by_step">Step-by-Step</MenuItem>
+          <MenuItem value="alternatives">Alternatives</MenuItem>
+        </Select>
+      </FormControl>
       <Button variant="contained" onClick={handleSend} sx={{ marginLeft: 1 }}>
         Send
       </Button>

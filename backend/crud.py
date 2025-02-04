@@ -1,6 +1,14 @@
 #backend/crud.py
 from sqlalchemy.orm import Session
 import models
+from database import SessionLocal, engine
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def create_session(db: Session):
     db_session = models.ChatSession()

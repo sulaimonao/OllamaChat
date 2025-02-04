@@ -7,3 +7,6 @@ backend/chat.db
 .DS_Store
 backend/chat.db
 /backend/__pycache__
+/backend/api/__pycache__
+project_overview.json
+scan-repo.py

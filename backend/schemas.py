@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+# backend/schemas.py
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 # Schema for individual message output
 class Message(BaseModel):
@@ -9,8 +10,7 @@ class Message(BaseModel):
     content: str
     timestamp: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Schema for a chat session including its messages
 class Session(BaseModel):
@@ -18,18 +18,16 @@ class Session(BaseModel):
     created_at: datetime
     messages: List[Message] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Request schema when sending a message
 class ChatRequest(BaseModel):
     session_id: int
     model_id: str
     message: str
+    reasoning_style: Optional[str] = None  # Add reasoning_style field
 
-    model_config = {
-        "protected_namespaces": ()
-    }
+    model_config = ConfigDict(protected_namespaces=())
 
 # Response schema after processing a chat message
 class ChatResponse(BaseModel):
@@ -38,6 +36,4 @@ class ChatResponse(BaseModel):
     model_message: str
     model_id: str
 
-    model_config = {
-        "protected_namespaces": ()
-    }
+    model_config = ConfigDict(protected_namespaces=())

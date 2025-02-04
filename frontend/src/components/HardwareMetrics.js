@@ -19,12 +19,11 @@ const HardwareMetrics = () => {
     }
   };
 
-  // Fetch metrics every 5 seconds
   useEffect(() => {
     fetchMetrics();
     const interval = setInterval(fetchMetrics, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, []); // Empty dependency array
 
   if (loading) {
     return (
