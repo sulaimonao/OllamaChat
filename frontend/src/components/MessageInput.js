@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
-import { uploadFile, webSearch } from '../api';  // Import from api.js
+import { uploadFile, webSearch } from '../api';
 
 const MessageInput = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
@@ -12,27 +12,22 @@ const MessageInput = ({ onSendMessage }) => {
   const [reasoningStyle, setReasoningStyle] = useState('');
   const fileInputRef = useRef(null);
 
-  // Trigger the hidden file input
   const handleFileIconClick = () => {
     fileInputRef.current.click();
   };
 
-  // When a file is chosen, store it in state
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
     }
   };
 
-  // When the search icon is clicked, prompt for a search query and call the /search endpoint
   const handleSearchIconClick = async () => {
     const query = prompt("Enter web search query:");
     if (query) {
       try {
-        const data = await webSearch(query); // Use webSearch from api.js
-        // For simplicity, use the abstract as the search result summary.
+        const data = await webSearch(query);
         const abstract = data.abstract || "No abstract available.";
-        // Format the result to be appended to the message.
         setSearchResult(`[WEB_SEARCH: ${abstract}]`);
       } catch (error) {
         console.error("Error during web search:", error);
@@ -41,33 +36,32 @@ const MessageInput = ({ onSendMessage }) => {
   };
 
   const handleSend = async () => {
-    let finalMessage = message;
+    let fileInfo = null; // Initialize fileInfo
 
-    // If a file is attached, upload it and append file info to the message
+    // If a file is attached, upload it
     if (attachedFile) {
       const formData = new FormData();
       formData.append('file', attachedFile);
       try {
-        const response = await uploadFile(formData); // Use uploadFile from api.js
-        // Append the file location to the message
-        finalMessage += `\n[FILE: ${response.data.location}]`;
+        const response = await uploadFile(formData);
+        // Instead of appending to the message, store the file info separately
+        fileInfo = `[FILE: ${response.location}]`;
       } catch (error) {
         console.error("File upload error:", error);
       }
-      // Clear the attached file after uploading
-      setAttachedFile(null);
+      setAttachedFile(null); // Clear the attached file after uploading
     }
 
+    let finalMessage = message;
     // If there is a search result, append it to the message
     if (searchResult) {
       finalMessage += `\n${searchResult}`;
       setSearchResult('');
     }
 
-    if (finalMessage.trim() !== '') {
-      onSendMessage(finalMessage, reasoningStyle);
-      setMessage('');
-    }
+    // Pass the fileInfo along with the message and reasoning style
+    onSendMessage(finalMessage, reasoningStyle, fileInfo);
+    setMessage('');
   };
 
   const handleReasoningStyleChange = (event) => {

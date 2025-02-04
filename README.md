@@ -63,9 +63,13 @@ ollama pull {model choice}
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the FastAPI server:
+4. Set up the SQLite database:
    ```bash
-   uvicorn main:app --reload
+   python database.py
+   ```
+5. Run the FastAPI server:
+   ```bash
+   uvicorn app:app --reload
    ```
    The backend server will run at [http://127.0.0.1:8000](http://127.0.0.1:8000).
 

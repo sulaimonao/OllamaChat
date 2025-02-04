@@ -27,10 +27,13 @@ function App() {
     }
   }, [sessionId]);
 
-  const handleSendMessage = async (messageText, reasoning_style) => {
+  const handleSendMessage = async (messageText, reasoning_style, fileInfo) => {
     setIsLoading(true);
     try {
-      const response = await sendChatMessage(sessionId, selectedModel, messageText, reasoning_style);
+      // Include file information in the message sent to the backend
+      const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
+
+      const response = await sendChatMessage(sessionId, selectedModel, fullMessage, reasoning_style);
       setMessages((prev) => [
         ...prev,
         { sender: 'user', content: response.user_message },
@@ -43,7 +46,7 @@ function App() {
       setIsLoading(false);
     }
   };
-
+  
   const loadChatHistory = async (sessionId) => {
     try {
       const sessionData = await getChatHistory(sessionId);
