@@ -26,7 +26,24 @@ def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(c
             context_messages.append(f"{prefix} {msg.content}")
         context = "\n".join(context_messages)
 
-        full_prompt = f"Context:\n{context}\n\nNew message: {chat_request.message}"
+        # Extract file information if present
+        file_content = ""
+        if "[FILE:" in chat_request.message:
+            start_index = chat_request.message.find("[FILE:") + len("[FILE:")
+            end_index = chat_request.message.find("]", start_index)
+            file_path = chat_request.message[start_index:end_index]
+            try:
+                with open(file_path, "r") as f:
+                    file_content = f.read()
+            except FileNotFoundError:
+                logging.error(f"File not found: {file_path}")
+                raise HTTPException(status_code=404, detail=f"File not found at path: {file_path}")
+
+            # Remove the [FILE: ...] tag from the user message
+            chat_request.message = chat_request.message.replace(f"[FILE: {file_path}]", "").strip()
+
+        # Add the file content to the prompt
+        full_prompt = f"Context:\n{context}\n\nNew message: {chat_request.message}\n\nFile Content:\n{file_content}"
 
         # Access reasoning_style from chat_request:
         if chat_request.reasoning_style:  # Correctly access the attribute
