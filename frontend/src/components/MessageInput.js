@@ -12,10 +12,6 @@ const MessageInput = ({ onSendMessage }) => {
   const [reasoningStyle, setReasoningStyle] = useState('');
   const fileInputRef = useRef(null);
 
-  const handleFileIconClick = () => {
-    fileInputRef.current.click();
-  };
-
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
@@ -43,8 +39,7 @@ const MessageInput = ({ onSendMessage }) => {
       formData.append('file', attachedFile);
       try {
         const response = await uploadFile(formData);
-        // Trim whitespace from the file location
-        fileInfo = `[FILE:${response.data.location.trim()}]`; 
+        fileInfo = response.data.location.trim();
       } catch (error) {
         console.error("File upload error:", error);
       }
@@ -52,14 +47,16 @@ const MessageInput = ({ onSendMessage }) => {
     }
 
     let finalMessage = message;
-    // If there is a search result, append it to the message
     if (searchResult) {
       finalMessage += `\n${searchResult}`;
       setSearchResult('');
     }
 
-    // Pass the fileInfo along with the message and reasoning style
-    onSendMessage(finalMessage, reasoningStyle, fileInfo);
+    if (fileInfo) {
+      finalMessage += `\n[FILE:${fileInfo}]`;
+    }
+
+    onSendMessage(finalMessage, reasoningStyle);
     setMessage('');
   };
 
@@ -76,7 +73,6 @@ const MessageInput = ({ onSendMessage }) => {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -84,7 +80,7 @@ const MessageInput = ({ onSendMessage }) => {
         onChange={handleFileChange}
       />
       <Tooltip title="Attach File">
-        <IconButton onClick={handleFileIconClick}>
+        <IconButton onClick={() => fileInputRef.current.click()}>
           <UploadFileIcon />
         </IconButton>
       </Tooltip>
