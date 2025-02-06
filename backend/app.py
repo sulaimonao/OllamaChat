@@ -5,7 +5,7 @@ import logging
 
 from database import engine
 import models
-from api import chat, session, models_list, chat_history, metrics, web_search, upload
+from api import chat, session, models_list, chat_history, metrics, web_search, upload, custom_inference  # Import custom_inference
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 
 # Include API routers
+app.include_router(custom_inference.router) # Add custom inference router
 app.include_router(chat.router)
 app.include_router(session.router)
 app.include_router(models_list.router)

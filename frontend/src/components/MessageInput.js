@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
+import ImageIcon from '@mui/icons-material/Image'; // Import an image icon
 import { uploadFile, webSearch } from '../api';
 
 const MessageInput = ({ onSendMessage }) => {
@@ -10,11 +11,25 @@ const MessageInput = ({ onSendMessage }) => {
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
   const [reasoningStyle, setReasoningStyle] = useState('');
+  const [image, setImage] = useState(null); // Add state for image
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null); // Ref for image input
+
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
+    }
+  };
+
+  // Function to handle image changes
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result); // Store base64 data
+      };
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
@@ -56,8 +71,12 @@ const MessageInput = ({ onSendMessage }) => {
       finalMessage += `\n[FILE:${fileInfo}]`;
     }
 
-    onSendMessage(finalMessage, reasoningStyle);
+    // Remove "data:image..." prefix
+    const base64Image = image ? image.split(',')[1] : null;
+
+    onSendMessage(finalMessage, reasoningStyle, null, base64Image); // Pass base64 image
     setMessage('');
+    setImage(null); // Clear image after sending
   };
 
   const handleReasoningStyleChange = (event) => {
@@ -73,15 +92,30 @@ const MessageInput = ({ onSendMessage }) => {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
+      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
+      {/* Hidden image input */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={imageInputRef}
+        style={{ display: 'none' }}
+        onChange={handleImageChange}
+      />
       <Tooltip title="Attach File">
         <IconButton onClick={() => fileInputRef.current.click()}>
           <UploadFileIcon />
+        </IconButton>
+      </Tooltip>
+      {/* Button to trigger image selection */}
+      <Tooltip title="Attach Image">
+        <IconButton onClick={() => imageInputRef.current.click()}>
+          <ImageIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Web Search">

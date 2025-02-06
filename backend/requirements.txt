@@ -7,3 +7,6 @@ psutil
 GPUtil
 transformers 
 python-multipart
+torch
+Pillow
+accelerate>=0.26.0

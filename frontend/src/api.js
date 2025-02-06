@@ -8,24 +8,32 @@ export const createSession = async () => {
   return response.data;
 };
 
-// Updated to include reasoning_style
-export const sendChatMessage = async (sessionId, modelId, message, reasoning_style) => {
-  const payload = {
-    session_id: sessionId,
-    model_id: modelId,
-    message: message,
-    reasoning_style: reasoning_style
-  };
-  const response = await axios.post(`${API_URL}/chat`, payload);
-  return response.data;
+// Updated to include reasoning_style and image
+export const sendChatMessage = async (sessionId, modelId, message, reasoning_style, imageBase64) => {
+    const payload = {
+      session_id: sessionId,
+      model_id: modelId,
+      message: message,
+      reasoning_style: reasoning_style,
+      image: imageBase64, // Add image to payload
+    };
+
+    const response = await axios.post(`${API_URL}/chat`, payload);
+    return response.data;
 };
 
+// Add getChatHistory function (THIS WAS MISSING)
 export const getChatHistory = async (sessionId) => {
-  const response = await axios.get(`${API_URL}/chat/${sessionId}`);
+    const response = await axios.get(`${API_URL}/chat/${sessionId}`);
+    return response.data;
+};
+
+// Add a function to fetch the available custom models
+export const getCustomModels = async () => {
+  const response = await axios.get(`${API_URL}/custom_models`);
   return response.data;
 };
 
-// Add other API functions as needed (no changes required for these)
 export const getModels = async () => {
   const response = await axios.get(`${API_URL}/models`);
   return response.data;
