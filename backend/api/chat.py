@@ -9,16 +9,16 @@ import requests
 import crud
 import schemas
 from ollama import call_ollama_cli, process_ollama_response
-from reasoning import call_ollama_with_reasoning
+from reasoning import call_ollama_with_reasoning, generate_reasoning_prompt
 from utils import UPLOAD_DIR
 from code_execution.executor import execute_code, read_file, write_file, delete_workspace
-from config import load_system_prompts  # Import from config
+from config import load_system_prompts
 
 router = APIRouter()
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "installed_models")
-SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "system_prompts") #Use relative path
-system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR) # Load prompts
+SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "system_prompts")
+system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR)
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(crud.get_db)):
@@ -32,11 +32,12 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         model_path = os.path.join(MODELS_DIR, chat_request.model_id)
         is_custom_model = os.path.exists(model_path)
 
-        # --- Load System Prompt ---
-        system_prompt_key = chat_request.reasoning_style or "default"
+        # --- Load System Prompt based on Persona ---
+        system_prompt_key = chat_request.persona or "default"  # Use persona, fallback to default
         if system_prompt_key not in system_prompts:
             system_prompt_key = "default"
         system_prompt = system_prompts[system_prompt_key]["prompt"]
+
 
         if is_custom_model:
             prompt = f"{system_prompt}\n\n{chat_request.message}"
@@ -70,7 +71,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             full_prompt = f"{system_prompt}\n\nContext:\n{context}\n\nNew message: {chat_request.message}\n\nFile Content:\n{file_content}"
 
         async def process_message(prompt_or_response, model_id, is_custom):
-            if is_custom:
+            if is_custom_model:
                 payload = {
                     "prompt": prompt_or_response,
                     "image": chat_request.image,
@@ -84,10 +85,11 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                     logging.error(f"Error calling custom inference: {e}")
                     raise HTTPException(status_code=500, detail=str(e))
             else:
+                # Use reasoning_style ONLY for Ollama models AND if it's provided
                 if chat_request.reasoning_style:
-                    model_response = call_ollama_with_reasoning(model_id, prompt_or_response, chat_request.reasoning_style)
-                    processed_response = process_ollama_response(model_response)
-                    model_response = processed_response["answer"]
+                     model_response = call_ollama_with_reasoning(model_id, prompt_or_response, chat_request.reasoning_style)
+                     processed_response = process_ollama_response(model_response)
+                     model_response = processed_response["answer"]
                 else:
                     model_response = call_ollama_cli(model_id, prompt_or_response)
 

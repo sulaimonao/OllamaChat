@@ -9,13 +9,14 @@ export const createSession = async () => {
 };
 
 // Updated to include reasoning_style and image
-export const sendChatMessage = async (sessionId, modelId, message, reasoning_style, imageBase64) => {
+export const sendChatMessage = async (sessionId, modelId, message, persona, imageBase64, reasoning_style) => {
     const payload = {
       session_id: sessionId,
       model_id: modelId,
       message: message,
       reasoning_style: reasoning_style,
       image: imageBase64, // Add image to payload
+      persona: persona
     };
 
     const response = await axios.post(`${API_URL}/chat`, payload);
@@ -50,13 +51,9 @@ export const webSearch = async (query) => {
 };
 
 export const uploadFile = async (formData) => {
-  const response = await axios.post(
-    `${API_URL}/upload`,
-    formData,
-    {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }
-  );
+  const response = await axios.post(`${API_URL}/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
   return response.data;
 };
 

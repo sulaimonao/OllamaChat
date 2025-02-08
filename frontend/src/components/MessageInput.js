@@ -1,36 +1,34 @@
 // frontend/src/components/MessageInput.js
-import React, { useState, useRef, useEffect } from 'react'; // Add useEffect
-import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import React, { useState, useRef, useEffect } from 'react';
+import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel, Grid } from '@mui/material'; // Import Grid
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
 import ImageIcon from '@mui/icons-material/Image';
-import { uploadFile, webSearch, getSystemPrompts } from '../api'; // Import getSystemPrompts
+import { uploadFile, webSearch, getSystemPrompts } from '../api';
 
 const MessageInput = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
-  const [reasoningStyle, setReasoningStyle] = useState('');  // Will also be used for persona
+  const [reasoningStyle, setReasoningStyle] = useState(''); // Keep reasoningStyle
+  const [persona, setPersona] = useState(''); // Separate state for persona
   const [image, setImage] = useState(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
-  const [availablePersonas, setAvailablePersonas] = useState({}); // Add state for personas
+  const [availablePersonas, setAvailablePersonas] = useState({});
 
-    useEffect(() => {
-      // Fetch available personas (system prompts)
-      getSystemPrompts()
-        .then((data) => {
-          setAvailablePersonas(data.system_prompts);
-          // Optionally set a default persona here, e.g.,
-          if (Object.keys(data.system_prompts).length > 0) {
-            setReasoningStyle(Object.keys(data.system_prompts)[0]); // Set first as default
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching system prompts:", error);
-        });
-    }, []); // Empty dependency array - only run once on mount
-
+  useEffect(() => {
+    getSystemPrompts()
+      .then((data) => {
+        setAvailablePersonas(data.system_prompts);
+        if (Object.keys(data.system_prompts).length > 0) {
+          setPersona(Object.keys(data.system_prompts)[0]); // Default persona
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching system prompts:", error);
+      });
+  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -85,72 +83,105 @@ const MessageInput = ({ onSendMessage }) => {
     if (fileInfo) {
       finalMessage += `\n[FILE:${fileInfo}]`;
     }
+
     const base64Image = image ? image.split(',')[1] : null;
-    onSendMessage(finalMessage, reasoningStyle, null, base64Image); // reasoningStyle is now persona
+    onSendMessage(finalMessage, persona, fileInfo, base64Image, reasoningStyle); // Pass BOTH persona and reasoningStyle
     setMessage('');
     setImage(null);
   };
 
   const handleReasoningStyleChange = (event) => {
-    setReasoningStyle(event.target.value); // Update reasoningStyle (now persona)
+    setReasoningStyle(event.target.value);
+  };
+
+  const handlePersonaChange = (event) => {
+    setPersona(event.target.value);
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
+    <Box sx={{ marginTop: 2 }}>
       <TextField
         fullWidth
         variant="outlined"
         placeholder="Type your message..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
+        sx={{ marginBottom: 2 }}
       />
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-      <input
-        type="file"
-        accept="image/*"
-        ref={imageInputRef}
-        style={{ display: 'none' }}
-        onChange={handleImageChange}
-      />
-      <Tooltip title="Attach File">
-        <IconButton onClick={() => fileInputRef.current.click()}>
-          <UploadFileIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Attach Image">
-        <IconButton onClick={() => imageInputRef.current.click()}>
-          <ImageIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Web Search">
-        <IconButton onClick={handleSearchIconClick}>
-          <SearchIcon />
-        </IconButton>
-      </Tooltip>
-      <FormControl sx={{ minWidth: 120, ml: 1 }}>
-        <InputLabel>Persona</InputLabel>
-        <Select
-          value={reasoningStyle} // Value is now the selected persona
-          onChange={handleReasoningStyleChange}
-          label="Persona"
-        >
-          <MenuItem value="">
-            <em>None</em>
-          </MenuItem>
-            {/* Populate options from availablePersonas */}
-            {Object.entries(availablePersonas).map(([key, description]) => (
-              <MenuItem key={key} value={key}>{description}</MenuItem>
-            ))}
-        </Select>
-      </FormControl>
-      <Button variant="contained" onClick={handleSend} sx={{ marginLeft: 1 }}>
-        Send
-      </Button>
+      <Grid container spacing={1} alignItems="center">
+        <Grid item>
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <Tooltip title="Attach File">
+            <IconButton onClick={() => fileInputRef.current.click()}>
+              <UploadFileIcon />
+            </IconButton>
+          </Tooltip>
+        </Grid>
+        <Grid item>
+          <input
+            type="file"
+            accept="image/*"
+            ref={imageInputRef}
+            style={{ display: 'none' }}
+            onChange={handleImageChange}
+          />
+          <Tooltip title="Attach Image">
+            <IconButton onClick={() => imageInputRef.current.click()}>
+              <ImageIcon />
+            </IconButton>
+          </Tooltip>
+        </Grid>
+        <Grid item>
+          <Tooltip title="Web Search">
+            <IconButton onClick={handleSearchIconClick}>
+              <SearchIcon />
+            </IconButton>
+          </Tooltip>
+        </Grid>
+        <Grid item>
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Persona</InputLabel>
+            <Select
+              value={persona}
+              onChange={handlePersonaChange}
+              label="Persona"
+            >
+              {Object.entries(availablePersonas).map(([key, description]) => (
+                <MenuItem key={key} value={key}>{description}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item>
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Reasoning</InputLabel>
+            <Select
+              value={reasoningStyle}
+              onChange={handleReasoningStyleChange}
+              label="Reasoning"
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              <MenuItem value="default">Default</MenuItem>
+              <MenuItem value="explanatory">Explanatory</MenuItem>
+              <MenuItem value="comparative">Comparative</MenuItem>
+              <MenuItem value="step_by_step">Step-by-Step</MenuItem>
+              <MenuItem value="alternatives">Alternatives</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item>
+          <Button variant="contained" onClick={handleSend}>
+            Send
+          </Button>
+        </Grid>
+      </Grid>
     </Box>
   );
 };

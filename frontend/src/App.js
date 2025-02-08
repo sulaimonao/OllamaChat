@@ -49,11 +49,14 @@ function App() {
     }
   }, [sessionId]);
 
-  const handleSendMessage = async (messageText, reasoning_style, fileInfo, imageBase64) => {
+  const handleSendMessage = async (messageText, reasoning_style, fileInfo, imageBase64, persona) => { // Add imageBase64
     setIsLoading(true);
     try {
+      // Include file information in the message sent to the backend
       const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
-      const response = await sendChatMessage(sessionId, selectedModel, fullMessage, reasoning_style, imageBase64);
+
+      // Now send the image along with other data
+      const response = await sendChatMessage(sessionId, selectedModel, fullMessage, reasoning_style, imageBase64, persona);
 
       setMessages((prev) => [
         ...prev,
