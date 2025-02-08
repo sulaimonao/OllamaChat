@@ -20,9 +20,10 @@ const MessageInput = ({ onSendMessage }) => {
   useEffect(() => {
     getSystemPrompts()
       .then((data) => {
+        console.log("System Prompts Data:", data); // ADD THIS LINE
         setAvailablePersonas(data.system_prompts);
         if (Object.keys(data.system_prompts).length > 0) {
-          setPersona(Object.keys(data.system_prompts)[0]); // Default persona
+          setPersona(Object.keys(data.system_prompts)[0]);
         }
       })
       .catch((error) => {
@@ -85,7 +86,7 @@ const MessageInput = ({ onSendMessage }) => {
     }
 
     const base64Image = image ? image.split(',')[1] : null;
-    onSendMessage(finalMessage, persona, fileInfo, base64Image, reasoningStyle); // Pass BOTH persona and reasoningStyle
+    onSendMessage(finalMessage, persona, null, base64Image, reasoningStyle); // Pass BOTH persona and reasoningStyle
     setMessage('');
     setImage(null);
   };
@@ -144,18 +145,18 @@ const MessageInput = ({ onSendMessage }) => {
           </Tooltip>
         </Grid>
         <Grid item>
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Persona</InputLabel>
-            <Select
-              value={persona}
-              onChange={handlePersonaChange}
-              label="Persona"
-            >
-              {Object.entries(availablePersonas).map(([key, description]) => (
-                <MenuItem key={key} value={key}>{description}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel>Persona</InputLabel>
+          <Select
+            value={persona}
+            onChange={handlePersonaChange}
+            label="Persona"
+          >
+            {Object.entries(availablePersonas).map(([key, description]) => (
+              <MenuItem key={key} value={key}>{description}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         </Grid>
         <Grid item>
           <FormControl sx={{ minWidth: 120 }}>

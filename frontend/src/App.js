@@ -49,25 +49,24 @@ function App() {
     }
   }, [sessionId]);
 
-  const handleSendMessage = async (messageText, reasoning_style, fileInfo, imageBase64, persona) => { // Add imageBase64
+  //Corrected send message
+  const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style) => { // Correct order
     setIsLoading(true);
     try {
-      // Include file information in the message sent to the backend
-      const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
+    const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
 
-      // Now send the image along with other data
-      const response = await sendChatMessage(sessionId, selectedModel, fullMessage, reasoning_style, imageBase64, persona);
+    const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style);
 
-      setMessages((prev) => [
+    setMessages((prev) => [
         ...prev,
         { sender: 'user', content: response.user_message },
         { sender: 'model', content: response.model_message },
-      ]);
+    ]);
     } catch (error) {
         console.error('Error sending message:', error);
         alert('Error sending message');
     } finally {
-      setIsLoading(false);
+    setIsLoading(false);
     }
   };
 
