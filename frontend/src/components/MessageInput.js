@@ -18,10 +18,11 @@ const MessageInput = ({ onSendMessage }) => {
   const [availablePersonas, setAvailablePersonas] = useState({});
 
   useEffect(() => {
-    debugger; // Add debugger statement
     getSystemPrompts()
       .then((data) => {
-        console.log("System Prompts Data:", data); // Log fetched data
+        console.log("System Prompts Data (frontend):", data); // Keep this
+        console.log("Type of data.system_prompts:", typeof data.system_prompts); // Add this
+        console.log("Keys of data.system_prompts:", Object.keys(data.system_prompts)); // Add this
         setAvailablePersonas(data.system_prompts);
         if (Object.keys(data.system_prompts).length > 0) {
           setPersona(Object.keys(data.system_prompts)[0]);
@@ -30,7 +31,7 @@ const MessageInput = ({ onSendMessage }) => {
       .catch((error) => {
         console.error("Error fetching system prompts:", error);
       });
-  }, []);
+  }, []);  
 
   const handleFileChange = (e) => {
     console.log("File selected:", e.target.files[0]); // Log selected file

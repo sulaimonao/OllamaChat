@@ -113,9 +113,10 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
                 if command_type == "execute":
                     language = args_str.strip()
+                    print(f"Executing code.  workspace_id: {session_obj.workspace_id}, language: {language}")  # Add this
                     result = await execute_code(code_or_content, language, session_obj.workspace_id)
                     final_response += f"\nCode Output ({language}):\n```\n{result['output']}\n```\n"
-
+                
                 elif command_type == "file_write":
                     filename = args_str.strip()
                     write_file(session_obj.workspace_id, filename, code_or_content)

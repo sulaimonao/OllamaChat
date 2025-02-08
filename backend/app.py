@@ -80,10 +80,12 @@ async def list_workspaces_endpoint():
 
 @app.delete("/workspace/{workspace_id}")
 async def delete_workspace_endpoint(workspace_id: str):
+    print("DELETE workspace called on id: "+workspace_id) #ADD LOG
     executor.delete_workspace(workspace_id)
     return {"message": f"Workspace {workspace_id} deleted"}
 
 @app.get("/system_prompts")
 async def get_system_prompts_endpoint():
     descriptions = {key: value["description"] for key, value in system_prompts.items()}
+    print("System prompt descriptions (backend):", descriptions)
     return {"system_prompts": descriptions}

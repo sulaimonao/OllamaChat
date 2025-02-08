@@ -13,6 +13,7 @@ def get_db():
 
 def create_session(db: Session):
     workspace_id, _ = create_workspace() # Create workspace
+    print(f"Creating session with workspace_id: {workspace_id}") #ADD LOG
     db_session = models.ChatSession(workspace_id=workspace_id) # Assign to session
     db.add(db_session)
     db.commit()
