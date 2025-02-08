@@ -25,6 +25,7 @@ def create_workspace():
     os.makedirs(workspace_path, exist_ok=True)
     return workspace_id, workspace_path
 
+
 def delete_workspace(workspace_id: str):
     """Deletes a workspace directory."""
     workspace_path = os.path.join(BASE_WORKSPACE_DIR, workspace_id)
@@ -45,6 +46,7 @@ def delete_workspace(workspace_id: str):
 def execute_code(code: str, language: str, workspace_id: str) -> dict:
     """Executes code within a Docker container."""
     workspace_path = os.path.join(BASE_WORKSPACE_DIR, workspace_id)
+    print(f"Attempting to execute code in: {workspace_path}") #ADD LOG
     if not os.path.exists(workspace_path):
         raise HTTPException(status_code=404, detail="Workspace not found")
 
@@ -116,6 +118,7 @@ def read_file(workspace_id: str, filename: str) -> str:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
          raise HTTPException(status_code=500, detail=str(e))
+
 
 def write_file(workspace_id: str, filename: str, content: str):
     """Writes a file to the model's workspace."""

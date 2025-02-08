@@ -6,7 +6,7 @@ import ChatWindow from './components/ChatWindow';
 import MessageInput from './components/MessageInput';
 import ModelSelector from './components/ModelSelector';
 import HardwareMetrics from './components/HardwareMetrics';
-import { createSession, getChatHistory, sendChatMessage, getCustomModels } from './api';
+import { createSession, getChatHistory, sendChatMessage, getCustomModels, getSystemPrompts } from './api';
 import WorkspaceManager from './components/WorkspaceManager'; // Import the new component
 
 
@@ -17,20 +17,18 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
+    const [availablePersonas, setAvailablePersonas] = useState({});
   const [tabValue, setTabValue] = useState(0); // State for tab index
 
-  useEffect(() => {
-    getCustomModels()
-      .then((data) => {
-        setAvailableModels(data.models);
-        if (data.models.length > 0 && !selectedModel) {
-          setSelectedModel(data.models[0]);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching custom models:", error);
-      });
-  }, [selectedModel]);
+    useEffect(() => {
+        getSystemPrompts()
+            .then((data) => {
+                setAvailablePersonas(data.system_prompts);
+            })
+            .catch((error) => {
+                console.error("Error fetching system prompts:", error);
+            });
+    }, []);
 
     useEffect(() => {
     if (!sessionId) {
@@ -44,18 +42,21 @@ function App() {
           getCustomModels()
             .then((data) => {
               setAvailableModels(data.models);
+                if (data.models.length > 0 && !selectedModel) {
+                    setSelectedModel(data.models[0]); // Select the first *custom* model, if available
+                }
             });
         }
       });
     }
-  }, [sessionId]);
+  }, [sessionId, selectedModel]);
 
   //Corrected send message
   const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style) => { // Correct order
+    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel); // Add this
     setIsLoading(true);
     try {
     const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
-
     const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style);
 
     setMessages((prev) => [
@@ -118,7 +119,7 @@ function App() {
               <Typography variant="h6" gutterBottom>Chat Session {sessionId}</Typography>
               <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} availableModels={availableModels} sx={{ mb: 2 }} />
               <ChatWindow messages={messages} isLoading={isLoading} sx={{ flexGrow: 1 }} />
-              <MessageInput onSendMessage={handleSendMessage}  />
+              <MessageInput onSendMessage={handleSendMessage} availablePersonas={availablePersonas}  />
             </Paper>
           </Grid>
         </Grid>

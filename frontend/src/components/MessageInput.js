@@ -6,32 +6,23 @@ import SearchIcon from '@mui/icons-material/Search';
 import ImageIcon from '@mui/icons-material/Image';
 import { uploadFile, webSearch, getSystemPrompts } from '../api';
 
-const MessageInput = ({ onSendMessage }) => {
+const MessageInput = ({ onSendMessage, availablePersonas }) => { // Receive availablePersonas
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
-  const [reasoningStyle, setReasoningStyle] = useState(''); // Keep reasoningStyle
-  const [persona, setPersona] = useState(''); // Separate state for persona
+  const [reasoningStyle, setReasoningStyle] = useState('');
+  const [persona, setPersona] = useState(''); // Initialize as empty string
   const [image, setImage] = useState(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
-  const [availablePersonas, setAvailablePersonas] = useState({});
+  // const [availablePersonas, setAvailablePersonas] = useState({}); // Remove this line
 
   useEffect(() => {
-    getSystemPrompts()
-      .then((data) => {
-        console.log("System Prompts Data (frontend):", data); // Keep this
-        console.log("Type of data.system_prompts:", typeof data.system_prompts); // Add this
-        console.log("Keys of data.system_prompts:", Object.keys(data.system_prompts)); // Add this
-        setAvailablePersonas(data.system_prompts);
-        if (Object.keys(data.system_prompts).length > 0) {
-          setPersona(Object.keys(data.system_prompts)[0]);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching system prompts:", error);
-      });
-  }, []);  
+    // Set a default persona *only after* availablePersonas has been populated.
+    if (Object.keys(availablePersonas).length > 0 && !persona) { // Check for both
+        setPersona(Object.keys(availablePersonas)[0]);
+    }
+}, [availablePersonas, persona]); // Depend on availablePersonas
 
   const handleFileChange = (e) => {
     console.log("File selected:", e.target.files[0]); // Log selected file
