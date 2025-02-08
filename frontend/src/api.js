@@ -55,3 +55,28 @@ export const uploadFile = async (formData) => {
   });
   return response.data;
 };
+
+export const createWorkspace = async () => {
+  const response = await axios.post(`${API_URL}/workspace/create`);
+  return response.data;
+};
+
+export const deleteWorkspace = async (workspaceId) => {
+  const response = await axios.delete(`${API_URL}/workspace/${workspaceId}`);
+  return response.data;
+};
+
+export const executeCode = async (code, language, workspaceId) => {
+  const response = await axios.post(`${API_URL}/execute`, { code, language, workspace_id: workspaceId });
+  return response.data;
+};
+
+export const readFile = async (workspaceId, filename) => {
+  const response = await axios.get(`${API_URL}/workspace/${workspaceId}/read?filename=${filename}`);
+  return response.data;
+};
+
+export const writeFile = async (workspaceId, filename, content) => {
+    const response = await axios.post(`${API_URL}/workspace/${workspaceId}/write`, {filename, content});
+    return response.data
+}

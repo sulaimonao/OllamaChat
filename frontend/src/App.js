@@ -16,6 +16,7 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
+  const [workspaceId, setWorkspaceId] = useState(null); // Add workspaceId state
 
   useEffect(() => {
     // Fetch available custom models
@@ -33,22 +34,26 @@ function App() {
 
     //Modify existing session
     useEffect(() => {
-    if (!sessionId) {
-      createSession().then((newSession) => {
-        if (newSession) {
-          setSessionId(newSession.id);
-          setMessages([]);
-          setSessions((prev) => [...prev, newSession]);
-
-          // Fetch available custom models here as well if you haven't
-          getCustomModels()
-            .then((data) => {
-              setAvailableModels(data.models);
-            });
-        }
-      });
-    }
-  }, [sessionId]); // Only on sessionId
+      if (!sessionId) {
+        createSession().then(async (newSession) => { //Make this async
+          if (newSession) {
+            setSessionId(newSession.id);
+            setMessages([]);
+            setSessions((prev) => [...prev, newSession]);
+  
+            // Fetch available custom models here as well if you haven't
+            getCustomModels()
+              .then((data) => {
+                setAvailableModels(data.models);
+              });
+  
+              //Create workspace here
+              const workspaceData = await createWorkspace();
+              setWorkspaceId(workspaceData.workspace_id)
+          }
+        });
+      }
+    }, [sessionId]); // Only on sessionId  
 
   const handleSendMessage = async (messageText, reasoning_style, fileInfo, imageBase64) => { // Add imageBase64
     setIsLoading(true);
