@@ -1,7 +1,7 @@
 # backend/api/chat.py
 import os
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request #Import Request
 from sqlalchemy.orm import Session
 import logging
 import requests
@@ -26,30 +26,33 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         session_obj = crud.get_session(db, chat_request.session_id)
         if session_obj is None:
             raise HTTPException(status_code=404, detail="Session not found")
+        # --- 1. Initial User Message Handling ---
+        user_message = chat_request.message
+        crud.create_message(db, session_obj.id, sender="user", content=user_message)
 
-        crud.create_message(db, session_obj.id, sender="user", content=chat_request.message)
-
+        # --- 2. Determine Model Type ---
         model_path = os.path.join(MODELS_DIR, chat_request.model_id)
         is_custom_model = os.path.exists(model_path)
 
-        # --- Load System Prompt based on Persona ---
-        system_prompt_key = chat_request.persona or "default"  # Use persona, fallback to default
+        # --- 3. Load System Prompt (based on Persona) ---
+        system_prompt_key = chat_request.persona or "default"
         if system_prompt_key not in system_prompts:
             system_prompt_key = "default"
         system_prompt = system_prompts[system_prompt_key]["prompt"]
 
+        # --- 4.  Initial Prompt Construction (for both model types) ---
+        # We'll construct a prompt that encourages structured output
+        # for intent recognition.
 
         if is_custom_model:
-            prompt = f"{system_prompt}\n\n{chat_request.message}"
-
-        else:
+            initial_prompt = f"{system_prompt}\n\nUser: {user_message}\n\nAssistant:"
+        else: #Ollama
             history = crud.get_messages(db, session_obj.id)
             context_messages = []
             for msg in history[-5:]:
                 prefix = "You:" if msg.sender == "user" else "Model:"
                 context_messages.append(f"{prefix} {msg.content}")
             context = "\n".join(context_messages)
-
             file_content = ""
             if "[FILE:" in chat_request.message:
                 start_index = chat_request.message.find("[FILE:") + len("[FILE:")
@@ -68,14 +71,16 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                     raise HTTPException(status_code=404, detail=f"File not found at path: {absolute_file_path}")
                 chat_request.message = chat_request.message.replace(f"[FILE: {relative_file_path}]", "").strip()
 
-            full_prompt = f"{system_prompt}\n\nContext:\n{context}\n\nNew message: {chat_request.message}\n\nFile Content:\n{file_content}"
+            initial_prompt = f"{system_prompt}\n\nContext:\n{context}\n\nUser: {user_message}\n\nFile Content:\n{file_content}\n\nAssistant:"
 
-        async def process_message(prompt_or_response, model_id, is_custom):
-            if is_custom_model:
+        # --- 5. Process (Potentially) Multi-Turn Interaction ---
+        async def process_message(prompt, model_id, is_custom):
+
+            if is_custom:
                 payload = {
-                    "prompt": prompt_or_response,
+                    "prompt": prompt,
                     "image": chat_request.image,
-                    "model": model_id
+                    "model": model_id,
                 }
                 try:
                     response = requests.post("http://127.0.0.1:8000/custom_chat", json=payload)
@@ -84,15 +89,16 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                 except requests.exceptions.RequestException as e:
                     logging.error(f"Error calling custom inference: {e}")
                     raise HTTPException(status_code=500, detail=str(e))
-            else:
-                # Use reasoning_style ONLY for Ollama models AND if it's provided
-                if chat_request.reasoning_style:
-                     model_response = call_ollama_with_reasoning(model_id, prompt_or_response, chat_request.reasoning_style)
-                     processed_response = process_ollama_response(model_response)
-                     model_response = processed_response["answer"]
-                else:
-                    model_response = call_ollama_cli(model_id, prompt_or_response)
 
+            else:#Ollama Models
+                if chat_request.reasoning_style:
+                    model_response = call_ollama_with_reasoning(model_id, prompt, chat_request.reasoning_style)
+                    processed_response = process_ollama_response(model_response)  # Ollama reasoning
+                    model_response = processed_response["answer"]
+                else:
+                    model_response = call_ollama_cli(model_id, prompt)  # Regular Ollama call
+
+            # --- Command Parsing (Regular Expressions) ---
             command_pattern = re.compile(r"```(execute|file_write|file_read)\s+([^\n]+)?\n([\s\S]*?)```")
 
             final_response = ""
@@ -102,8 +108,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                 command_type = match.group(1)
                 args_str = match.group(2)
                 code_or_content = match.group(3)
-
-                final_response += model_response[last_index:match.start()]
+                final_response += model_response[last_index:match.start()] #Text BEFORE command
 
                 if command_type == "execute":
                     language = args_str.strip()
@@ -123,17 +128,20 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                     except HTTPException as e:
                         final_response += f"\nError reading file '{filename}': {e.detail}\n"
 
-                last_index = match.end()
+                last_index = match.end() #Text AFTER command
 
             final_response += model_response[last_index:]
             return final_response.strip()
 
-        model_reply = await process_message(full_prompt, chat_request.model_id, is_custom_model)
+        # --- 6. Initial Model Call and Iterative Processing ---
+
+        model_reply = await process_message(initial_prompt, chat_request.model_id, is_custom_model)
         crud.create_message(db, session_obj.id, sender="model", content=model_reply)
+
 
         return schemas.ChatResponse(
             session_id=session_obj.id,
-            user_message=chat_request.message,
+            user_message=user_message,
             model_message=model_reply,
             model_id=chat_request.model_id,
         )
