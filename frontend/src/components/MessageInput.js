@@ -18,9 +18,10 @@ const MessageInput = ({ onSendMessage }) => {
   const [availablePersonas, setAvailablePersonas] = useState({});
 
   useEffect(() => {
+    debugger; // Add debugger statement
     getSystemPrompts()
       .then((data) => {
-        console.log("System Prompts Data:", data); // ADD THIS LINE
+        console.log("System Prompts Data:", data); // Log fetched data
         setAvailablePersonas(data.system_prompts);
         if (Object.keys(data.system_prompts).length > 0) {
           setPersona(Object.keys(data.system_prompts)[0]);
@@ -32,12 +33,14 @@ const MessageInput = ({ onSendMessage }) => {
   }, []);
 
   const handleFileChange = (e) => {
+    console.log("File selected:", e.target.files[0]); // Log selected file
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
     }
   };
 
   const handleImageChange = (e) => {
+    console.log("Image selected:", e.target.files[0]); // Log selected image
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -49,6 +52,7 @@ const MessageInput = ({ onSendMessage }) => {
 
   const handleSearchIconClick = async () => {
     const query = prompt("Enter web search query:");
+    console.log("Search query:", query); // Log search query
     if (query) {
       try {
         const data = await webSearch(query);
