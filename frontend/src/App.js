@@ -36,7 +36,8 @@ function App() {
     if (!sessionId) {
       createSession().then((newSession) => {
         if (newSession) {
-          setSessionId(newSession.id);
+          console.log("New session created:", newSession); // Log the entire session object
+          setSessionId(parseInt(newSession.id, 10)); // Ensure it's an integer
           setMessages([]);
           setSessions((prev) => [...prev, newSession]);
 

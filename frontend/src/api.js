@@ -10,17 +10,18 @@
 
     // Updated to include reasoning_style and image
     export const sendChatMessage = async (sessionId, modelId, message, persona, imageBase64, reasoning_style) => {
-        const payload = {
-          session_id: sessionId,
-          model_id: modelId,
-          message: message,
-          reasoning_style: reasoning_style,
-          image: imageBase64, // Add image to payload
-          persona: persona
-        };
-        const response = await axios.post(`${API_URL}/chat`, payload);
-        return response.data;
-    };
+      const payload = {
+        session_id: sessionId,
+        model_id: modelId,
+        message: message,
+        reasoning_style: reasoning_style,
+        image: imageBase64, // Add image to payload
+        persona: persona
+      };
+      console.log("Sending payload:", payload); // Add this for debugging!
+      const response = await axios.post(`${API_URL}/chat`, payload);
+      return response.data;
+  };
 
     // Add getChatHistory function (THIS WAS MISSING)
     export const getChatHistory = async (sessionId) => {

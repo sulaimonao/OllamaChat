@@ -1,4 +1,4 @@
-#backend/models.py
+# backend/models.py
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -9,6 +9,7 @@ class ChatSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    workspace_id = Column(String, nullable=True)  # ADDED
 
     # Relationship to messages
     messages = relationship("Message", back_populates="session")

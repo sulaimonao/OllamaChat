@@ -23,6 +23,7 @@ system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR)
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(crud.get_db)):
     try:
+        print("Received chat_request:", chat_request)
         session_obj = crud.get_session(db, chat_request.session_id)
         if session_obj is None:
             raise HTTPException(status_code=404, detail="Session not found")
