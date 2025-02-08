@@ -1,0 +1,6 @@
+{
+    "default": {
+      "description": "A general-purpose coding assistant.",
+      "prompt": "You are a helpful coding assistant. You can execute code, write files, and read files within a persistent workspace...\n(rest of your default prompt)"
+    }
+  }

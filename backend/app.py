@@ -2,25 +2,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-import json # Import json module
 import os
 
 from database import engine
 import models
 from api import chat, session, models_list, chat_history, metrics, web_search, upload, custom_inference
 from code_execution import executor
+from config import load_system_prompts  # Import the config loader
 
 # --- Load System Prompts ---
-SYSTEM_PROMPTS_FILE = os.path.join(os.path.dirname(__file__), "system_prompts.json")
-try:
-    with open(SYSTEM_PROMPTS_FILE, "r") as f:
-        system_prompts = json.load(f)
-except FileNotFoundError:
-    logging.error(f"System prompts file not found: {SYSTEM_PROMPTS_FILE}")
-    system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
-except json.JSONDecodeError:
-    logging.error(f"Error decoding JSON in system prompts file: {SYSTEM_PROMPTS_FILE}")
-    system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
+SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "system_prompts")
+system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR)
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -41,6 +33,10 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 # Create the custom models directory.
 os.makedirs(os.path.join(os.path.dirname(__file__), "installed_models"), exist_ok=True)
+
+# Create system_prompts directory.
+os.makedirs(os.path.join(os.path.dirname(__file__), "system_prompts"), exist_ok=True)
+
 # Include API routers
 app.include_router(custom_inference.router)
 app.include_router(chat.router)

@@ -12,3 +12,4 @@ project_overview.json
 scan-repo.py
 /backend/uploads
 /backend/installed_models/paligemma2-3b-pt-224
+/backend/code_execution/__pycache__

@@ -135,7 +135,7 @@ const MessageInput = ({ onSendMessage }) => {
       <FormControl sx={{ minWidth: 120, ml: 1 }}>
         <InputLabel>Persona</InputLabel>
         <Select
-          value={reasoningStyle}  {/* Value is now the selected persona */}
+          value={reasoningStyle} // Value is now the selected persona
           onChange={handleReasoningStyleChange}
           label="Persona"
         >

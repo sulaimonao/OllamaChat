@@ -12,11 +12,13 @@ from ollama import call_ollama_cli, process_ollama_response
 from reasoning import call_ollama_with_reasoning
 from utils import UPLOAD_DIR
 from code_execution.executor import execute_code, read_file, write_file, delete_workspace
-from app import system_prompts # Import system_prompts
+from config import load_system_prompts  # Import from config
 
 router = APIRouter()
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "installed_models")
+SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "system_prompts") #Use relative path
+system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR) # Load prompts
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(crud.get_db)):
@@ -31,13 +33,13 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         is_custom_model = os.path.exists(model_path)
 
         # --- Load System Prompt ---
-        system_prompt_key = chat_request.reasoning_style or "default"  # Use reasoning_style as persona
+        system_prompt_key = chat_request.reasoning_style or "default"
         if system_prompt_key not in system_prompts:
-            system_prompt_key = "default"  # Fallback to default
+            system_prompt_key = "default"
         system_prompt = system_prompts[system_prompt_key]["prompt"]
 
         if is_custom_model:
-            prompt = f"{system_prompt}\n\n{chat_request.message}" #Prepend to prompt
+            prompt = f"{system_prompt}\n\n{chat_request.message}"
 
         else:
             history = crud.get_messages(db, session_obj.id)
@@ -65,11 +67,9 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                     raise HTTPException(status_code=404, detail=f"File not found at path: {absolute_file_path}")
                 chat_request.message = chat_request.message.replace(f"[FILE: {relative_file_path}]", "").strip()
 
-            # --- Prepend System Prompt ---
             full_prompt = f"{system_prompt}\n\nContext:\n{context}\n\nNew message: {chat_request.message}\n\nFile Content:\n{file_content}"
 
         async def process_message(prompt_or_response, model_id, is_custom):
-            """Helper function to handle both initial calls and model responses."""
             if is_custom:
                 payload = {
                     "prompt": prompt_or_response,
@@ -127,7 +127,6 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             return final_response.strip()
 
         model_reply = await process_message(full_prompt, chat_request.model_id, is_custom_model)
-
         crud.create_message(db, session_obj.id, sender="model", content=model_reply)
 
         return schemas.ChatResponse(
