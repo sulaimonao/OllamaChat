@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session
 import models
 from database import SessionLocal, engine
+from code_execution.executor import create_workspace # Import
 
 def get_db():
     db = SessionLocal()
@@ -11,7 +12,8 @@ def get_db():
         db.close()
 
 def create_session(db: Session):
-    db_session = models.ChatSession()
+    workspace_id, _ = create_workspace() # Create workspace
+    db_session = models.ChatSession(workspace_id=workspace_id) # Assign to session
     db.add(db_session)
     db.commit()
     db.refresh(db_session)

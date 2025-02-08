@@ -2,11 +2,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import json # Import json module
+import os
 
 from database import engine
 import models
 from api import chat, session, models_list, chat_history, metrics, web_search, upload, custom_inference
-from code_execution import executor  # Import the executor
+from code_execution import executor
+
+# --- Load System Prompts ---
+SYSTEM_PROMPTS_FILE = os.path.join(os.path.dirname(__file__), "system_prompts.json")
+try:
+    with open(SYSTEM_PROMPTS_FILE, "r") as f:
+        system_prompts = json.load(f)
+except FileNotFoundError:
+    logging.error(f"System prompts file not found: {SYSTEM_PROMPTS_FILE}")
+    system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
+except json.JSONDecodeError:
+    logging.error(f"Error decoding JSON in system prompts file: {SYSTEM_PROMPTS_FILE}")
+    system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -38,26 +52,13 @@ app.include_router(web_search.router)
 app.include_router(upload.router)
 
 
-# --- Code Execution Endpoints ---
-@app.post("/execute")
-async def execute(code: str, language: str, workspace_id: str):
-    return executor.execute_code(code, language, workspace_id)
-
+# --- Workspace Management Endpoints ---
 @app.post("/workspace/create")
 async def create_workspace_endpoint():
     workspace_id, _ = executor.create_workspace()
     return {"workspace_id": workspace_id}
 
-@app.delete("/workspace/{workspace_id}")
-async def delete_workspace_endpoint(workspace_id: str):
-    executor.delete_workspace(workspace_id)
-    return {"message": f"Workspace {workspace_id} deleted"}
-
-@app.get("/workspace/{workspace_id}/read")
-async def read_file_endpoint(workspace_id: str, filename: str):
-    return {"content": executor.read_file(workspace_id, filename)}
-
-@app.post("/workspace/{workspace_id}/write")
-async def write_file_endpoint(workspace_id: str, filename: str, content: str):
-    executor.write_file(workspace_id, filename, content)
-    return {"message": f"File '{filename}' written to workspace {workspace_id}"}
+@app.get("/system_prompts")
+async def get_system_prompts_endpoint():
+    descriptions = {key: value["description"] for key, value in system_prompts.items()}
+    return {"system_prompts": descriptions}

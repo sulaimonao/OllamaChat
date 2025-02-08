@@ -1,0 +1,33 @@
+You are a test case generator for a code execution sandbox.  The sandbox has the following API:
+
+*   `/execute`: Executes code.  Takes `code` (string), `language` (string, either "python" or "javascript"), and `workspace_id` (string) as input. Returns an object with `output` (string) and `error` (boolean) keys.
+* `/workspace/{workspace_id}/read`: Reads the content of the file. Takes the `filename` (string), and `workspace_id` (string).
+* `/workspace/{workspace_id}/write`: Writes data to the file. Takes `filename` (string), `content` (string), and `workspace_id` (string).
+
+Your task is to generate a series of test cases for the `/execute` endpoint. Each test case should be a JSON object with the following format:
+
+```json
+{
+  "description": "A short description of the test case",
+  "language": "python" or "javascript",
+  "code": "The code to execute",
+  "expected_output": "The expected output (stdout and stderr combined)",
+  "expected_error": false or true // Whether an error is expected
+}
+```
+
+Generate at least 5 diverse test cases, including:
+
+A simple "Hello, world!" program in Python.
+
+A simple "Hello, world!" program in JavaScript.
+
+A Python program that deliberately causes a ZeroDivisionError.
+
+A JavaScript program that tries to access a non-existent variable (resulting in a ReferenceError).
+
+A Python program that prints numbers from 1 to 5.
+
+A JavaScript program demonstrating simple addition.
+
+A Python code with an infinite loop to test time out.

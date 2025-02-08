@@ -1,19 +1,35 @@
 // frontend/src/components/MessageInput.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Add useEffect
 import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
-import ImageIcon from '@mui/icons-material/Image'; // Import an image icon
-import { uploadFile, webSearch } from '../api';
+import ImageIcon from '@mui/icons-material/Image';
+import { uploadFile, webSearch, getSystemPrompts } from '../api'; // Import getSystemPrompts
 
 const MessageInput = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
-  const [reasoningStyle, setReasoningStyle] = useState('');
-  const [image, setImage] = useState(null); // Add state for image
+  const [reasoningStyle, setReasoningStyle] = useState('');  // Will also be used for persona
+  const [image, setImage] = useState(null);
   const fileInputRef = useRef(null);
-  const imageInputRef = useRef(null); // Ref for image input
+  const imageInputRef = useRef(null);
+  const [availablePersonas, setAvailablePersonas] = useState({}); // Add state for personas
+
+    useEffect(() => {
+      // Fetch available personas (system prompts)
+      getSystemPrompts()
+        .then((data) => {
+          setAvailablePersonas(data.system_prompts);
+          // Optionally set a default persona here, e.g.,
+          if (Object.keys(data.system_prompts).length > 0) {
+            setReasoningStyle(Object.keys(data.system_prompts)[0]); // Set first as default
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching system prompts:", error);
+        });
+    }, []); // Empty dependency array - only run once on mount
 
 
   const handleFileChange = (e) => {
@@ -22,12 +38,11 @@ const MessageInput = ({ onSendMessage }) => {
     }
   };
 
-  // Function to handle image changes
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result); // Store base64 data
+        setImage(reader.result);
       };
       reader.readAsDataURL(e.target.files[0]);
     }
@@ -70,17 +85,14 @@ const MessageInput = ({ onSendMessage }) => {
     if (fileInfo) {
       finalMessage += `\n[FILE:${fileInfo}]`;
     }
-
-    // Remove "data:image..." prefix
     const base64Image = image ? image.split(',')[1] : null;
-
-    onSendMessage(finalMessage, reasoningStyle, null, base64Image); // Pass base64 image
+    onSendMessage(finalMessage, reasoningStyle, null, base64Image); // reasoningStyle is now persona
     setMessage('');
-    setImage(null); // Clear image after sending
+    setImage(null);
   };
 
   const handleReasoningStyleChange = (event) => {
-    setReasoningStyle(event.target.value);
+    setReasoningStyle(event.target.value); // Update reasoningStyle (now persona)
   };
 
   return (
@@ -92,14 +104,12 @@ const MessageInput = ({ onSendMessage }) => {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      {/* Hidden image input */}
       <input
         type="file"
         accept="image/*"
@@ -112,7 +122,6 @@ const MessageInput = ({ onSendMessage }) => {
           <UploadFileIcon />
         </IconButton>
       </Tooltip>
-      {/* Button to trigger image selection */}
       <Tooltip title="Attach Image">
         <IconButton onClick={() => imageInputRef.current.click()}>
           <ImageIcon />
@@ -124,20 +133,19 @@ const MessageInput = ({ onSendMessage }) => {
         </IconButton>
       </Tooltip>
       <FormControl sx={{ minWidth: 120, ml: 1 }}>
-        <InputLabel>Reasoning</InputLabel>
+        <InputLabel>Persona</InputLabel>
         <Select
-          value={reasoningStyle}
+          value={reasoningStyle}  {/* Value is now the selected persona */}
           onChange={handleReasoningStyleChange}
-          label="Reasoning"
+          label="Persona"
         >
           <MenuItem value="">
             <em>None</em>
           </MenuItem>
-          <MenuItem value="default">Default</MenuItem>
-          <MenuItem value="explanatory">Explanatory</MenuItem>
-          <MenuItem value="comparative">Comparative</MenuItem>
-          <MenuItem value="step_by_step">Step-by-Step</MenuItem>
-          <MenuItem value="alternatives">Alternatives</MenuItem>
+            {/* Populate options from availablePersonas */}
+            {Object.entries(availablePersonas).map(([key, description]) => (
+              <MenuItem key={key} value={key}>{description}</MenuItem>
+            ))}
         </Select>
       </FormControl>
       <Button variant="contained" onClick={handleSend} sx={{ marginLeft: 1 }}>
