@@ -93,7 +93,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
             else:#Ollama Models
                 if chat_request.reasoning_style:
-                    model_response = call_ollama_with_reasoning(model_id, prompt, chat_request.reasoning_style)
+                    model_response = await call_ollama_with_reasoning(model_id, prompt, chat_request.reasoning_style) #NOW AWAIT HERE
                     processed_response = process_ollama_response(model_response)  # Ollama reasoning
                     model_response = processed_response["answer"]
                 else:
@@ -114,7 +114,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                 if command_type == "execute":
                     language = args_str.strip()
                     print(f"Executing code.  workspace_id: {session_obj.workspace_id}, language: {language}")  # Keep this
-                    result = execute_code(code_or_content, language, session_obj.workspace_id)
+                    result = execute_code(code_or_content, language, session_obj.workspace_id) #NO AWAIT
                     final_response += f"\nCode Output ({language}):\n```\n{result['output']}\n```\n"
 
                 elif command_type == "file_write":
@@ -137,7 +137,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         # --- 6. Initial Model Call and Iterative Processing ---
 
-        model_reply = process_message(initial_prompt, chat_request.model_id, is_custom_model)
+        model_reply = await process_message(initial_prompt, chat_request.model_id, is_custom_model) #AWAIT HERE
         crud.create_message(db, session_obj.id, sender="model", content=model_reply)
 
 
