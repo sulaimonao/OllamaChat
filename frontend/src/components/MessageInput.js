@@ -1,38 +1,35 @@
 // frontend/src/components/MessageInput.js
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel, Grid } from '@mui/material'; // Import Grid
+import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel, Grid } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SearchIcon from '@mui/icons-material/Search';
 import ImageIcon from '@mui/icons-material/Image';
 import { uploadFile, webSearch, getSystemPrompts } from '../api';
 
-const MessageInput = ({ onSendMessage, availablePersonas }) => { // Receive availablePersonas
+const MessageInput = ({ onSendMessage, availablePersonas }) => {
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
   const [searchResult, setSearchResult] = useState('');
   const [reasoningStyle, setReasoningStyle] = useState('');
-  const [persona, setPersona] = useState(''); // Initialize as empty string
+  const [persona, setPersona] = useState('');
   const [image, setImage] = useState(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
-  // const [availablePersonas, setAvailablePersonas] = useState({}); // Remove this line
 
-  useEffect(() => {
-    // Set a default persona *only after* availablePersonas has been populated.
-    if (Object.keys(availablePersonas).length > 0 && !persona) { // Check for both
-        setPersona(Object.keys(availablePersonas)[0]);
-    }
-}, [availablePersonas, persona]); // Depend on availablePersonas
-
+    useEffect(() => {
+        // Set a default persona *only after* availablePersonas has been populated.
+        if (Object.keys(availablePersonas).length > 0 && !persona) { // Check for both
+            setPersona(Object.keys(availablePersonas)[0]);
+        }
+    }, [availablePersonas, persona]); // Depend on availablePersonas
+    //Remove the other use effect
   const handleFileChange = (e) => {
-    console.log("File selected:", e.target.files[0]); // Log selected file
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
     }
   };
 
   const handleImageChange = (e) => {
-    console.log("Image selected:", e.target.files[0]); // Log selected image
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -44,7 +41,6 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => { // Receive avai
 
   const handleSearchIconClick = async () => {
     const query = prompt("Enter web search query:");
-    console.log("Search query:", query); // Log search query
     if (query) {
       try {
         const data = await webSearch(query);
@@ -56,42 +52,42 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => { // Receive avai
     }
   };
 
-  const handleSend = async () => {
-    let fileInfo = null;
+    const handleSend = async () => {
+      let fileInfo = null;
 
-    if (attachedFile) {
-      const formData = new FormData();
-      formData.append('file', attachedFile);
-      try {
-        const response = await uploadFile(formData);
-        fileInfo = response.data.location.trim();
-      } catch (error) {
-        console.error("File upload error:", error);
+      if (attachedFile) {
+        const formData = new FormData();
+        formData.append('file', attachedFile);
+        try {
+          const response = await uploadFile(formData);
+          fileInfo = response.data.location.trim();
+        } catch (error) {
+          console.error("File upload error:", error);
+        }
+        setAttachedFile(null);
       }
-      setAttachedFile(null);
-    }
 
-    let finalMessage = message;
-    if (searchResult) {
-      finalMessage += `\n${searchResult}`;
-      setSearchResult('');
-    }
+      let finalMessage = message;
+      if (searchResult) {
+        finalMessage += `\n${searchResult}`;
+        setSearchResult('');
+      }
 
-    if (fileInfo) {
-      finalMessage += `\n[FILE:${fileInfo}]`;
-    }
+      if (fileInfo) {
+        finalMessage += `\n[FILE:${fileInfo}]`;
+      }
 
-    const base64Image = image ? image.split(',')[1] : null;
-    onSendMessage(finalMessage, persona, null, base64Image, reasoningStyle); // Pass BOTH persona and reasoningStyle
-    setMessage('');
-    setImage(null);
-  };
-
+      const base64Image = image ? image.split(',')[1] : null;
+      onSendMessage(finalMessage, persona, null, base64Image, reasoningStyle);
+      setMessage('');
+      setImage(null);
+    };
   const handleReasoningStyleChange = (event) => {
     setReasoningStyle(event.target.value);
   };
 
   const handlePersonaChange = (event) => {
+      console.log("Persona changed to:", event.target.value);
     setPersona(event.target.value);
   };
 
@@ -148,9 +144,10 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => { // Receive avai
             onChange={handlePersonaChange}
             label="Persona"
           >
-            {Object.entries(availablePersonas).map(([key, description]) => (
-              <MenuItem key={key} value={key}>{description}</MenuItem>
-            ))}
+            {Object.entries(availablePersonas).map(([key, description]) => {
+              console.log("Key, Description", key, description) // Add this
+              return (<MenuItem key={key} value={key}>{description}</MenuItem>)
+            })}
           </Select>
         </FormControl>
         </Grid>
