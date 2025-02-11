@@ -1,11 +1,13 @@
+langchain-ollama
+langchain-core
 fastapi
 uvicorn
 sqlalchemy
 pydantic
 requests
-psutil 
+psutil
 GPUtil
-transformers 
+transformers
 python-multipart
 torch
 Pillow

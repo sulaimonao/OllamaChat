@@ -70,6 +70,6 @@
 
     export const getSystemPrompts = async () => {
       const response = await axios.get(`${API_URL}/system_prompts`);
-      console.log("Raw response from /system_prompts:", response); // Add this
+      console.log("Raw response from /system_prompts:", response); // Keep for debugging
       return response.data;
     };

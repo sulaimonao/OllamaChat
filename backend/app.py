@@ -9,20 +9,18 @@ from database import engine
 import models
 from api import chat, session, models_list, chat_history, metrics, web_search, upload, custom_inference
 from code_execution import executor
-from config import load_system_prompts  # Make sure this import is correct
+from config import load_system_prompts
+from ollama_integration import call_ollama_api  # Updated import
 
 # --- Load System Prompts ---
-SYSTEM_PROMPTS_FILE = os.path.join(os.path.dirname(__file__), "system_prompts.json")  # This is probably NOT the correct path!
-# Correct path
 SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "system_prompts")
 
 try:
-    # Don't load a single file. Load the directory
-    system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR) # Use load_system_prompts and the correct directory.
+    system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR)
 except FileNotFoundError:
     logging.error(f"System prompts directory not found: {SYSTEM_PROMPTS_DIR}")
     system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
-except json.JSONDecodeError:  # This exception handling isn't needed anymore
+except json.JSONDecodeError:
     logging.error(f"Error decoding JSON in system prompts file: {SYSTEM_PROMPTS_DIR}")
     system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
 
@@ -47,8 +45,6 @@ logging.basicConfig(level=logging.INFO)
 
 # Create the custom models directory.
 os.makedirs(os.path.join(os.path.dirname(__file__), "installed_models"), exist_ok=True)
-# Create system_prompts directory (This is redundant - it should be created by the project structure)
-os.makedirs(os.path.join(os.path.dirname(__file__), "system_prompts"), exist_ok=True)
 
 # Include API routers
 app.include_router(custom_inference.router)
@@ -87,5 +83,5 @@ async def delete_workspace_endpoint(workspace_id: str):
 @app.get("/system_prompts")
 async def get_system_prompts_endpoint():
     descriptions = {key: value["description"] for key, value in system_prompts.items()}
-    print("System prompt descriptions (backend):", descriptions)  # Keep this for now
+    print("System prompt descriptions (backend):", descriptions)  # Keep this for debugging
     return {"system_prompts": descriptions}

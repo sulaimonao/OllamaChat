@@ -1,6 +1,7 @@
 // frontend/src/components/FileUpload.js
 import React, { useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import axios from 'axios';
 
 const FileUpload = ({ onAddMessage }) => {
@@ -42,6 +43,7 @@ const FileUpload = ({ onAddMessage }) => {
       {uploadResult && (
         <Typography variant="body2" sx={{ mt: 1 }}>
           Uploaded: {uploadResult.filename}
+          <InsertDriveFileIcon sx={{ ml: 1, verticalAlign: 'middle' }} />
         </Typography>
       )}
     </Box>

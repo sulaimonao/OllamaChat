@@ -21,7 +21,7 @@ This is the FastAPI backend for the Chat Interface Application.
 3. **Run the server:**
 
    ```bash
-   uvicorn main:app --reload
+   uvicorn app:app --reload
    ```
 
    The server will start at [http://127.0.0.1:8000](http://127.0.0.1:8000).

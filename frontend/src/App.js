@@ -16,7 +16,7 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
-  const [availablePersonas, setAvailablePersonas] = useState({}); // Initialize as an empty object
+  const [availablePersonas, setAvailablePersonas] = useState({});
   const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
