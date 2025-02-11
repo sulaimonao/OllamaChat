@@ -52,25 +52,28 @@ function App() {
     }
   }, [sessionId, selectedModel]); // Depend on selectedModel as well
 
-    const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style) => { // Correct order
-    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel, "persona", persona); // Add this
+  const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style) => {
+    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel, "persona", persona);
     setIsLoading(true);
     try {
-    const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
-    const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style);
+        const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
+        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style);
 
-    setMessages((prev) => [
-        ...prev,
-        { sender: 'user', content: response.user_message },
-        { sender: 'model', content: response.model_message },
-    ]);
+        // Create new message array
+        const newMessages = [
+            ...messages, // keep existing messages
+            { sender: 'user', content: response.user_message },
+            { sender: 'model', content: response.model_message },
+        ]
+        setMessages(newMessages)
+
     } catch (error) {
         console.error('Error sending message:', error);
         alert('Error sending message');
     } finally {
-    setIsLoading(false);
+        setIsLoading(false);
     }
-  };
+};
 
   const loadChatHistory = async (sessionId) => {
     try {
