@@ -3,11 +3,17 @@
 This repository contains a complete chat interface application. The app lets users send messages and receive responses from local language models (accessed via Ollama). All chat messages are stored in an SQLite database, and the code is organized for easy extensibility.
 
 ## Features
+- **Local Search:** The model can search local documents to answer questions.
 - Send messages to language models.
 - Select a model for each conversation.
 - Store chat messages (user and model responses) in an SQLite database.
 - View past conversations (chat history).
 - **List Installed Models:** The system locates and shows previously installed models.
+
+### Local Search
+The local search feature allows the model to search through documents in the `backend/local_data` directory. You can add your own markdown files to this directory to make them searchable. The search index is built on startup.
+
+The new `whoosh` dependency has been added to `backend/requirements.txt` to support this feature.
 
 ## Project Structure
 

@@ -8,6 +8,7 @@ backend/chat.db
 backend/chat.db
 /backend/__pycache__
 /backend/api/__pycache__
+**/__pycache__/
 project_overview.json
 scan-repo.py
 /backend/uploads
