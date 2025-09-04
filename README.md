@@ -10,10 +10,37 @@ This repository contains a complete chat interface application. The app lets use
 - View past conversations (chat history).
 - **List Installed Models:** The system locates and shows previously installed models.
 
-### Local Search
-The local search feature allows the model to search through documents in the `backend/local_data` directory. You can add your own markdown files to this directory to make them searchable. The search index is built on startup.
+### Local Search v2 (Hybrid Search & Auto Tool-Use)
+The local search feature has been upgraded to v2. It now features:
+- **Hybrid Search:** Combines lexical (BM25F) and semantic search for better results.
+- **Automatic Tool Use:** The LLM can now decide on its own when to use the search tool.
+- **Expanded Document Support:** Can parse `.md`, `.txt`, `.html`, and `.pdf` files.
+- **Configuration:** Search behavior can be configured in `backend/config/search.yaml`.
+- **Command-Line Interface:** A new CLI for manual indexing and searching.
 
-The new `whoosh` dependency has been added to `backend/requirements.txt` to support this feature.
+#### Optional Dependencies
+To enable hybrid search and parsing for all document types, you need to install optional dependencies:
+```bash
+pip install -r backend/requirements.txt
+```
+The new optional dependencies are: `sentence-transformers`, `faiss-cpu`, `beautifulsoup4`, `pypdf`, `pyyaml`, `langchain`, and `langchain-text-splitters`.
+
+#### Configuration
+You can configure the search engine by editing `backend/config/search.yaml`. The available options are:
+- `allowlist`: A list of directories or files to index.
+- `enable_hybrid`: Set to `true` to enable hybrid search (requires optional dependencies).
+- `top_k`: The default number of results to return.
+
+#### Command-Line Interface
+You can use the CLI to manage the search index:
+- **Index documents:**
+  ```bash
+  python -m backend.tools.search_cli index backend/local_data
+  ```
+- **Search the index:**
+  ```bash
+  python -m backend.tools.search_cli search "your query"
+  ```
 
 ## Project Structure
 

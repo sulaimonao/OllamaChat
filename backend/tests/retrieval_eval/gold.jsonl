@@ -1,0 +1,5 @@
+{"question": "What is OllamaChat?", "answers": ["backend/local_data/ollamachat_readme.md"]}
+{"question": "How is the local search feature implemented?", "answers": ["backend/local_data/local_search_feature.md"]}
+{"question": "What is the future of the project?", "answers": ["backend/local_data/future_plans.md"]}
+{"question": "What is RAG?", "answers": ["backend/local_data/future_plans.md"]}
+{"question": "Does the application support multi-modal models?", "answers": ["backend/local_data/future_plans.md"]}

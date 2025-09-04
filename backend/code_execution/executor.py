@@ -7,7 +7,20 @@ import logging
 from typing import Optional
 from fastapi import HTTPException
 
-client = docker.from_env()
+client = None
+
+def get_docker_client():
+    """Initializes and returns the Docker client."""
+    global client
+    if client is None:
+        try:
+            client = docker.from_env()
+        except docker.errors.DockerException as e:
+            logging.error(f"Could not connect to Docker daemon: {e}")
+            # Depending on desired behavior, you could raise an exception
+            # or handle it gracefully. For now, we'll raise a custom error.
+            raise HTTPException(status_code=503, detail="Docker service is unavailable.")
+    return client
 
 # Configuration (consider moving this to a config file)
 BASE_WORKSPACE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workspaces")  # Top-level workspaces dir
@@ -69,7 +82,8 @@ def execute_code(code: str, language: str, workspace_id: str) -> dict:
             raise ValueError(f"Unsupported language: {language}")
 
         # --- Run the container ---
-        container = client.containers.run(
+        docker_client = get_docker_client()
+        container = docker_client.containers.run(
             IMAGE_NAME,
             command,
             volumes={workspace_path: {"bind": "/app", "mode": "rw"}},  # Mount workspace

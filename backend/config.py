@@ -44,3 +44,35 @@ def load_system_prompts(prompts_dir=None):
         system_prompts = {"default": {"description": "Default Assistant", "prompt": "You are a helpful assistant."}}
 
     return system_prompts
+
+
+import yaml
+
+def load_search_config(config_path=None):
+    """Loads the search configuration from a YAML file."""
+    if config_path is None:
+        config_path = os.path.join(os.path.dirname(__file__), "config", "search.yaml")
+
+    default_config = {
+        "allowlist": ["backend/local_data"],
+        "crawl_depth": 2,
+        "file_globs": ["*.md", "*.txt"],
+        "max_file_size": 1000000,
+        "top_k": 8,
+        "enable_hybrid": True
+    }
+
+    try:
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                config = yaml.safe_load(f)
+                if config:
+                    # Merge with defaults, user config takes precedence
+                    default_config.update(config)
+                return default_config
+        else:
+            logging.warning(f"Search config file not found: {config_path}. Using default config.")
+            return default_config
+    except Exception as e:
+        logging.exception(f"Error loading search config from {config_path}. Using default config.")
+        return default_config

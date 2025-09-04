@@ -3,8 +3,12 @@ import json
 #from ollama import call_ollama_api  # No longer needed, using langchain
 from typing import Optional
 
+import os
+
 def load_reasoning_templates():
-    with open("reasoning_templates.json", "r") as file:
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(dir_path, "reasoning_templates.json")
+    with open(file_path, "r") as file:
         return json.load(file)
 
 reasoning_templates = load_reasoning_templates()
