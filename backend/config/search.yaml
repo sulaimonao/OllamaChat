@@ -1,0 +1,11 @@
+# This file will contain the configuration for the search engine.
+# Example configuration:
+# allowlist:
+#   - "backend/local_data"
+# crawl_depth: 2
+# file_globs:
+#   - "*.md"
+#   - "*.txt"
+# max_file_size: 1000000 # 1MB
+# top_k: 8
+# enable_hybrid: true
