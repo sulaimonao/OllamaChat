@@ -8,17 +8,28 @@ from typing import Optional
 
 import crud
 import schemas
-from ollama_integration import call_ollama_api 
+from ollama_integration import call_ollama_api
 from reasoning import generate_reasoning_prompt
 from utils import UPLOAD_DIR
 from code_execution.executor import execute_code, read_file, write_file
 from config import load_system_prompts
+from tools.search_engine import SearchEngine
+import json
 
 router = APIRouter()
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "installed_models")
 SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "system_prompts")
 system_prompts = load_system_prompts(SYSTEM_PROMPTS_DIR)
+
+# Initialize search engine and index data
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "local_data")
+search_engine = SearchEngine()
+if not search_engine.ix.doccount():
+    print("Indexing local data...")
+    file_paths = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".md")]
+    search_engine.index_files(file_paths)
+    print("Indexing complete.")
 
 
 @router.post("/chat", response_model=schemas.ChatResponse)
@@ -104,7 +115,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                     model_response = call_ollama_api(model_id, prompt, image)
 
             # --- Command Parsing (Regular Expressions) ---
-            command_pattern = re.compile(r"```(execute|file_write|file_read)\s+([^\n]+)?\n([\s\S]*?)```")
+            command_pattern = re.compile(r"```(execute|file_write|file_read|local_search)\s+([^\n]+)?\n([\s\S]*?)```")
             final_response = ""
             last_index = 0
 
@@ -130,6 +141,13 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                         filename = args_str.strip()
                         file_content = read_file(session_obj.workspace_id, filename)
                         final_response += f"\nContent of '{filename}':\n```\n{file_content}\n```\n"
+
+                    elif command_type == "local_search":
+                        query = code_or_content.strip()
+                        logging.info(f"Performing local search for: {query}")
+                        search_results = search_engine.search(query)
+                        results_json = json.dumps(search_results, indent=2)
+                        final_response += f"\nLocal Search Results:\n```json\n{results_json}\n```\n"
 
                 except HTTPException as e:
                     final_response += f"\nError: {e.detail}\n"
