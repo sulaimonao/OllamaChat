@@ -52,18 +52,18 @@ function App() {
     }
   }, [sessionId, selectedModel]); // Depend on selectedModel as well
 
-  const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style) => {
-    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel, "persona", persona);
+  const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style, useBrowser) => {
+    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel, "persona", persona, "useBrowser", useBrowser);
     setIsLoading(true);
     try {
         const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
-        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style);
+        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style, useBrowser);
 
         // Create new message array
         const newMessages = [
             ...messages, // keep existing messages
             { sender: 'user', content: response.user_message },
-            { sender: 'model', content: response.model_message },
+            { sender: 'model', content: response.model_message, browser_results: response.browser_results },
         ]
         setMessages(newMessages)
 

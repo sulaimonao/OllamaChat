@@ -1,6 +1,7 @@
 // frontend/src/components/ChatWindow.js
-import React, { useRef, useEffect } from 'react';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import React, { useRef, useEffect, useState } from 'react';
+import { Box, Typography, CircularProgress, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReactMarkdown from 'react-markdown';
 import CodeBlock from './CodeBlock';
 
@@ -30,8 +31,26 @@ const ChatWindow = ({ messages, isLoading }) => {
           <Typography variant="subtitle2" color={msg.sender === 'user' ? 'primary' : 'secondary'}>
             {msg.sender === 'user' ? 'You' : 'Model'}
           </Typography>
+          {msg.browser_results && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="body2">Show Browser Results</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {msg.browser_results.map((result, i) => (
+                  <Box key={i} sx={{ mb: 1 }}>
+                    <Typography variant="body2" component="a" href={result.url} target="_blank" rel="noopener noreferrer">
+                      {result.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {result.snippet}
+                    </Typography>
+                  </Box>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+          )}
           {msg.sender === 'model' ? (
-            // Render markdown with custom code block rendering.
             <ReactMarkdown components={{ code: CodeBlock }}>
               {msg.content}
             </ReactMarkdown>
