@@ -112,7 +112,12 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             tools.append(web_search)
 
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+        reasoning_models = {"gpt-oss"}
+        if chat_request.model_id in reasoning_models:
+            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, return_intermediate_steps=True)
+        else:
+            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
         # 4. Prepare chat history
         history = crud.get_messages(db, session_obj.id)
@@ -133,11 +138,23 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         model_reply = response.get("output", "I could not process that.")
         crud.create_message(db, session_obj.id, sender="model", content=model_reply)
 
+        reasoning_steps = []
+        if "intermediate_steps" in response:
+            for step in response["intermediate_steps"]:
+                # Each step is a tuple of (action, observation)
+                action, observation = step
+                reasoning_steps.append({
+                    "tool": action.tool,
+                    "tool_input": action.tool_input,
+                    "observation": observation
+                })
+
         return schemas.ChatResponse(
             session_id=session_obj.id,
-            user_message=chat_request.message, # Return original user message
+            user_message=chat_request.message,
             model_message=model_reply,
             model_id=chat_request.model_id,
+            reasoning=reasoning_steps if reasoning_steps else None,
         )
 
     except Exception as e:

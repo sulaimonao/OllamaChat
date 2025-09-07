@@ -1,9 +1,10 @@
 // frontend/src/components/ChatWindow.js
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReactMarkdown from 'react-markdown';
 import CodeBlock from './CodeBlock';
+import ReasoningView from './ReasoningView';
 
 const ChatWindow = ({ messages, isLoading }) => {
   const endOfMessagesRef = useRef(null);
@@ -57,6 +58,7 @@ const ChatWindow = ({ messages, isLoading }) => {
           ) : (
             <Typography variant="body1">{msg.content}</Typography>
           )}
+          {msg.reasoning && <ReasoningView reasoning={msg.reasoning} />}
         </Box>
       ))}
       {isLoading && (
