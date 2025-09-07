@@ -3,11 +3,11 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import logging
-from typing import Optional
+from typing import Optional, List, Any, Dict
 
 import crud
 import schemas
-from reasoning import generate_reasoning_prompt, route_to_browser
+from reasoning import generate_reasoning_prompt, route_to_browser, reasoning_models
 from utils import UPLOAD_DIR
 from code_execution.executor import execute_code, read_file, write_file
 from config import load_system_prompts, load_search_config
@@ -16,6 +16,25 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.callbacks.base import BaseCallbackHandler
+
+class ReasoningCallbackHandler(BaseCallbackHandler):
+    def __init__(self):
+        self.steps = []
+
+    def on_agent_action(self, action: Any, **kwargs: Any) -> Any:
+        # Log tool, input, and thought process
+        thought = kwargs.get("thought", "No thought provided.")
+        self.steps.append(f"Thought: {thought}\nTool: {action.tool}\nInput: {action.tool_input}")
+
+    def on_tool_end(self, output: str, **kwargs: Any) -> Any:
+        self.steps.append(f"Tool Output: {output}")
+
+    def on_llm_end(self, response: Any, **kwargs: Any) -> Any:
+        # This can be noisy, so we'll keep it simple
+        if "thought" in response.generations[0][0].text:
+             self.steps.append(response.generations[0][0].text)
+
 
 router = APIRouter()
 
@@ -74,7 +93,6 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         tools = [local_search]
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
         # 4. Prepare chat history
         history = crud.get_messages(db, session_obj.id)
@@ -86,6 +104,14 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
                 chat_history.append(AIMessage(content=msg.content))
 
         # 5. Invoke the agent
+        reasoning_callback_handler = ReasoningCallbackHandler()
+        callbacks = []
+        if chat_request.model_id in reasoning_models:
+            user_message = generate_reasoning_prompt(user_message, chat_request.reasoning_style)
+            callbacks.append(reasoning_callback_handler)
+
+        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, callbacks=callbacks)
+
         response = await agent_executor.ainvoke({
             "input": user_message,
             "chat_history": chat_history
@@ -96,10 +122,11 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         return schemas.ChatResponse(
             session_id=session_obj.id,
-            user_message=chat_request.message, # Return original user message
+            user_message=chat_request.message,
             model_message=model_reply,
             model_id=chat_request.model_id,
-            browser_results=browser_results
+            browser_results=browser_results,
+            reasoning_steps=reasoning_callback_handler.steps if chat_request.model_id in reasoning_models else []
         )
 
     except Exception as e:

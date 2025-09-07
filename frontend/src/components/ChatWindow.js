@@ -50,6 +50,20 @@ const ChatWindow = ({ messages, isLoading }) => {
               </AccordionDetails>
             </Accordion>
           )}
+          {msg.reasoning_steps && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="body2">Show Reasoning</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {msg.reasoning_steps.map((step, i) => (
+                  <Typography key={i} variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'pre-wrap' }}>
+                    {step}
+                  </Typography>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+          )}
           {msg.sender === 'model' ? (
             <ReactMarkdown components={{ code: CodeBlock }}>
               {msg.content}

@@ -63,7 +63,7 @@ function App() {
         const newMessages = [
             ...messages, // keep existing messages
             { sender: 'user', content: response.user_message },
-            { sender: 'model', content: response.model_message, browser_results: response.browser_results },
+            { sender: 'model', content: response.model_message, browser_results: response.browser_results, reasoning_steps: response.reasoning_steps },
         ]
         setMessages(newMessages)
 
