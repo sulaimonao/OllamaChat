@@ -7,7 +7,17 @@ import os
 
 from database import engine
 import models
-from api import chat, session, models_list, chat_history, metrics, web_search, upload, custom_inference
+from api import (
+    chat,
+    session,
+    models_list,
+    chat_history,
+    metrics,
+    web_search,
+    upload,
+    custom_inference,
+    code_execution,
+)
 from code_execution import executor
 from config import load_system_prompts
 from ollama_integration import call_ollama_api  # Updated import
@@ -55,6 +65,7 @@ app.include_router(chat_history.router)
 app.include_router(metrics.router)
 app.include_router(web_search.router)
 app.include_router(upload.router)
+app.include_router(code_execution.router)
 
 # --- Workspace Management Endpoints ---
 @app.post("/workspace/create")
