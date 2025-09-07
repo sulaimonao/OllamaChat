@@ -21,3 +21,8 @@ pypdf
 pyyaml
 langchain-text-splitters
 langchain
+httpx
+trafilatura
+lxml
+typer
+rich
