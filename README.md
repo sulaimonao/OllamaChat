@@ -121,4 +121,28 @@ ollama pull {model choice}
    ```
    The application will open in your browser at [http://localhost:3000](http://localhost:3000).
 
+### Code Execution
+
+The backend can execute code inside sandboxed Docker containers.
+
+1. Build the execution image:
+   ```bash
+   cd backend/code_execution
+   docker build -t code-executor:latest .
+   ```
+2. Make sure Docker is running before starting the backend.
+3. Use the API to manage workspaces:
+   ```bash
+   curl -X POST http://127.0.0.1:8000/workspace/create      # create
+   curl http://127.0.0.1:8000/workspaces                    # list
+   curl -X DELETE http://127.0.0.1:8000/workspace/<id>      # delete
+   ```
+4. Run code within a workspace:
+   ```python
+   from code_execution.executor import execute_code
+   execute_code("print('hi')", "python", workspace_id)
+   ```
+
+See `backend/code_execution/readme.txt` for more examples.
+
 Happy chatting!
