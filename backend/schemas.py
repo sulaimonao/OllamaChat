@@ -36,6 +36,7 @@ class ChatResponse(BaseModel):
     user_message: str
     model_message: str
     model_id: str
+    reasoning: Optional[List[dict]] = None
     browser_results: Optional[List[dict]] = None
 
     model_config = ConfigDict(protected_namespaces=())
