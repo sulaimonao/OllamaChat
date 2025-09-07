@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
     reasoning_style: Optional[str] = None  # Reasoning style (can be None)
     image: Optional[str] = None
     persona: Optional[str] = None # Add persona
+    use_browser: Optional[bool] = False
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -34,5 +35,6 @@ class ChatResponse(BaseModel):
     user_message: str
     model_message: str
     model_id: str
+    browser_results: Optional[List[dict]] = None
 
     model_config = ConfigDict(protected_namespaces=())

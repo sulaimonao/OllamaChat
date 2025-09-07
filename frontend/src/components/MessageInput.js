@@ -1,8 +1,7 @@
 // frontend/src/components/MessageInput.js
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel, Grid, Typography } from '@mui/material'; // Import Typography
+import { Box, TextField, Button, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel, Grid, Typography, Switch, FormControlLabel } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SearchIcon from '@mui/icons-material/Search';
 import ImageIcon from '@mui/icons-material/Image';
 import { uploadFile, webSearch, getSystemPrompts } from '../api';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -12,6 +11,7 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => {
     const [attachedFile, setAttachedFile] = useState(null);
     const [attachedFileName, setAttachedFileName] = useState(''); // Store filename for display
     const [searchResult, setSearchResult] = useState('');
+    const [useBrowser, setUseBrowser] = useState(false);
     const [reasoningStyle, setReasoningStyle] = useState('');
     const [persona, setPersona] = useState('');
     const [image, setImage] = useState(null);
@@ -43,19 +43,6 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => {
         }
     };
 
-    const handleSearchIconClick = async () => {
-        const query = prompt("Enter web search query:");
-        if (query) {
-            try {
-                const data = await webSearch(query);
-                const abstract = data.abstract || "No abstract available.";
-                setSearchResult(`[WEB_SEARCH: ${abstract}]`);
-            } catch (error) {
-                console.error("Error during web search:", error);
-            }
-        }
-    };
-
     const handleSend = async () => {
         let fileInfo = null;
 
@@ -83,7 +70,7 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => {
         }
 
         const base64Image = image ? image.split(',')[1] : null;
-        onSendMessage(finalMessage, persona, null, base64Image, reasoningStyle);
+        onSendMessage(finalMessage, persona, null, base64Image, reasoningStyle, useBrowser);
         setMessage('');
         setImage(null);
         setImageName(''); //Clear image name after submit
@@ -152,14 +139,13 @@ const MessageInput = ({ onSendMessage, availablePersonas }) => {
                         </Typography>
                     )}
                 </Grid>
-                {/* ... (rest of your icon buttons: Web Search) ... */}
+                {/* Browser Toggle */}
                 <Grid item>
-          <Tooltip title="Web Search">
-            <IconButton onClick={handleSearchIconClick}>
-              <SearchIcon />
-            </IconButton>
-          </Tooltip>
-        </Grid>
+                    <FormControlLabel
+                        control={<Switch checked={useBrowser} onChange={(e) => setUseBrowser(e.target.checked)} />}
+                        label="Browser"
+                    />
+                </Grid>
                 {/* Persona Selection */}
                 <Grid item>
                     <FormControl sx={{ minWidth: 120 }}>
