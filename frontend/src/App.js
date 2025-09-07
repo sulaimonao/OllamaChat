@@ -57,7 +57,9 @@ function App() {
     setIsLoading(true);
     try {
         const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
-        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style, useBrowser);
+        const currentSession = sessions.find((s) => s.id === sessionId);
+        const workspaceId = currentSession ? currentSession.workspace_id : null;
+        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style, useBrowser, workspaceId);
 
         // Create new message array
         const newMessages = [
