@@ -33,7 +33,8 @@ class TestAutoToolUse(unittest.TestCase):
         chat_request = ChatRequest(
             session_id=1,
             message="What is the test file about?",
-            model_id="test_model"
+            model_id="test_model",
+            workspace_id="test_ws"
         )
 
         # This is an async function, but we can run it synchronously for the test

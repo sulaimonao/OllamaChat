@@ -17,6 +17,8 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 
@@ -38,6 +40,41 @@ if not search_engine_instance.ix.doc_count() and search_config.get("allowlist"):
     search_engine_instance.index(all_files)
     print("Indexing complete.")
 
+
+class CodeExecutionInput(BaseModel):
+    """Input schema for the code execution tool."""
+    command: str = Field(description="One of 'execute', 'read_file', or 'write_file'")
+    language: Optional[str] = Field(default=None, description="Language for the execute command")
+    code: Optional[str] = Field(default=None, description="Code to run when command='execute'")
+    filename: Optional[str] = Field(default=None, description="Filename for file operations")
+    content: Optional[str] = Field(default=None, description="Content to write when command='write_file'")
+
+
+def create_code_execution_tool(workspace_id: str):
+    """Create a LangChain tool bound to a specific workspace."""
+
+    @tool(args_schema=CodeExecutionInput)
+    def code_executor(command: str,
+                      language: Optional[str] = None,
+                      code: Optional[str] = None,
+                      filename: Optional[str] = None,
+                      content: Optional[str] = None) -> str:
+        if command == "execute":
+            result = execute_code(code or "", language or "python", workspace_id)
+            return result.get("output", "")
+        if command == "read_file":
+            if not filename:
+                return "Filename required"
+            return read_file(workspace_id, filename)
+        if command == "write_file":
+            if not filename:
+                return "Filename required"
+            write_file(workspace_id, filename, content or "")
+            return "File written successfully"
+        return "Unknown command"
+
+    return code_executor
+
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(crud.get_db)):
     try:
@@ -48,6 +85,9 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         user_message = chat_request.message
         crud.create_message(db, session_obj.id, sender="user", content=user_message)
+
+        workspace_id = chat_request.workspace_id or session_obj.workspace_id
+        code_execution_tool = create_code_execution_tool(workspace_id)
 
         # 1. Get system prompt
         system_prompt_key = chat_request.persona or "default"
@@ -67,7 +107,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             ("placeholder", "{agent_scratchpad}"),
         ])
 
-        tools = [local_search]
+        tools = [local_search, code_execution_tool]
         if chat_request.use_browser:
             tools.append(web_search)
 
@@ -86,7 +126,8 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         # 5. Invoke the agent
         response = await agent_executor.ainvoke({
             "input": user_message,
-            "chat_history": chat_history
+            "chat_history": chat_history,
+            "workspace_id": workspace_id
         })
 
         model_reply = response.get("output", "I could not process that.")
