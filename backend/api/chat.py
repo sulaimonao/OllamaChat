@@ -7,11 +7,12 @@ from typing import Optional
 
 import crud
 import schemas
-from reasoning import generate_reasoning_prompt, route_to_browser
+from reasoning import generate_reasoning_prompt
 from utils import UPLOAD_DIR
 from code_execution.executor import execute_code, read_file, write_file
 from config import load_system_prompts, load_search_config
 from tools.search_engine import local_search, search_engine_instance
+from api.web_search import web_search
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
@@ -48,12 +49,6 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         user_message = chat_request.message
         crud.create_message(db, session_obj.id, sender="user", content=user_message)
 
-        browser_results = None
-        if chat_request.use_browser:
-            browser_results = await route_to_browser(user_message)
-            if browser_results:
-                user_message += f"\n\n[BROWSER_RESULTS]\n{browser_results}\n[/BROWSER_RESULTS]"
-
         # 1. Get system prompt
         system_prompt_key = chat_request.persona or "default"
         if system_prompt_key not in system_prompts:
@@ -73,6 +68,9 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         ])
 
         tools = [local_search]
+        if chat_request.use_browser:
+            tools.append(web_search)
+
         agent = create_tool_calling_agent(llm, tools, prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
@@ -99,7 +97,6 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             user_message=chat_request.message, # Return original user message
             model_message=model_reply,
             model_id=chat_request.model_id,
-            browser_results=browser_results
         )
 
     except Exception as e:
