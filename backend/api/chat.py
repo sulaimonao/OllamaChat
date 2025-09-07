@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import logging
@@ -16,6 +17,7 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain.tools import Tool
 
 router = APIRouter()
 
@@ -36,6 +38,45 @@ if not search_engine_instance.ix.doc_count() and search_config.get("allowlist"):
             all_files.append(path)
     search_engine_instance.index(all_files)
     print("Indexing complete.")
+
+
+def _create_code_execution_tool(workspace_id: str) -> Tool:
+    """Create a tool for executing and managing code in a workspace."""
+
+    def _run(input_str: str) -> str:
+        try:
+            data = json.loads(input_str)
+        except Exception as e:
+            return f"Invalid input: {e}"
+
+        operation = data.get("operation", "execute")
+        try:
+            if operation == "execute":
+                code = data.get("code", "")
+                language = data.get("language", "python")
+                result = execute_code(code, language, workspace_id)
+                return result.get("output", "")
+            if operation == "read_file":
+                filename = data.get("filename", "")
+                return read_file(workspace_id, filename)
+            if operation == "write_file":
+                filename = data.get("filename", "")
+                content = data.get("content", "")
+                write_file(workspace_id, filename, content)
+                return "File written successfully."
+            return f"Unsupported operation: {operation}"
+        except Exception as e:
+            return str(e)
+
+    return Tool(
+        name="code_execution",
+        description=(
+            "Execute code or read/write files. Input JSON with keys: operation"
+            " (execute|read_file|write_file), code, language, filename, content"
+        ),
+        func=_run,
+    )
+
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Depends(crud.get_db)):
@@ -63,6 +104,8 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         # 2. Initialize the model
         llm = ChatOllama(model=chat_request.model_id)
 
+        workspace_id = chat_request.workspace_id or session_obj.workspace_id
+
         # 3. Create the agent
         # Note: The prompt template is simple for now. It could be more complex.
         prompt = ChatPromptTemplate.from_messages([
@@ -72,7 +115,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
             ("placeholder", "{agent_scratchpad}"),
         ])
 
-        tools = [local_search]
+        tools = [local_search, _create_code_execution_tool(workspace_id)]
         agent = create_tool_calling_agent(llm, tools, prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
@@ -88,7 +131,8 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
         # 5. Invoke the agent
         response = await agent_executor.ainvoke({
             "input": user_message,
-            "chat_history": chat_history
+            "chat_history": chat_history,
+            "workspace_id": workspace_id,
         })
 
         model_reply = response.get("output", "I could not process that.")
@@ -96,12 +140,13 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         return schemas.ChatResponse(
             session_id=session_obj.id,
-            user_message=chat_request.message, # Return original user message
+            user_message=chat_request.message,  # Return original user message
             model_message=model_reply,
             model_id=chat_request.model_id,
-            browser_results=browser_results
+            browser_results=browser_results,
         )
 
     except Exception as e:
         logging.exception(f"Error processing chat message: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+

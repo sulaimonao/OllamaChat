@@ -27,6 +27,7 @@ class ChatRequest(BaseModel):
     image: Optional[str] = None
     persona: Optional[str] = None # Add persona
     use_browser: Optional[bool] = False
+    workspace_id: Optional[str] = None
 
     model_config = ConfigDict(protected_namespaces=())
 
