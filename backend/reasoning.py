@@ -29,7 +29,7 @@ def generate_reasoning_prompt(question, user_selected_reasoning=None):
 
 **Reasoning:**"""
 
-from backend.api.web_search import web_search
+from api.web_search import web_search
 
 async def route_to_browser(prompt: str) -> Optional[str]:
     """
