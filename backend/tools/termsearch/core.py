@@ -4,6 +4,19 @@ import httpx
 import trafilatura
 from bs4 import BeautifulSoup
 
+import re
+_WORD_RE = re.compile(r'\S+')
+
+def _fts_safe(text: str) -> str:
+    """Sanitize text for FTS5 MATCH query."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    # De-double-quote and wrap each token in double quotes.
+    # FTS5 will parse this as a phrase query for each token.
+    toks = _WORD_RE.findall(text)
+    return " ".join(['"{}"'.format(t.replace('"', '""')) for t in toks])
+
 # ---------- Utilities ----------
 
 def normalize_url(u: str) -> str:
@@ -123,6 +136,7 @@ class Index:
         # Full-text search
         conn = self._connect()
         cur = conn.cursor()
+        qtext = _fts_safe(text)
         if site_filter:
             cur.execute(
                 "SELECT d.id, d.url, d.title, snippet(docs_fts, 1, '<b>', '</b>', ' … ', 12) AS snippet, "
@@ -130,7 +144,7 @@ class Index:
                 "FROM docs_fts JOIN docs d ON d.id = docs_fts.rowid "
                 "WHERE docs_fts MATCH ? AND d.url LIKE ? "
                 "ORDER BY bm25 LIMIT ?",
-                (text, f"%{site_filter}%", limit*5)
+                (qtext, f"%{site_filter}%", limit*5)
             )
         else:
             cur.execute(
@@ -139,7 +153,7 @@ class Index:
                 "FROM docs_fts JOIN docs d ON d.id = docs_fts.rowid "
                 "WHERE docs_fts MATCH ? "
                 "ORDER BY bm25 LIMIT ?",
-                (text, limit*5)
+                (qtext, limit*5)
             )
         rows = cur.fetchall()
 

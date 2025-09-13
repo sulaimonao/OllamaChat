@@ -26,20 +26,6 @@ router = APIRouter()
 system_prompts = load_system_prompts()
 search_config = load_search_config()
 
-# Initialize search engine and index data if needed
-if not search_engine_instance.ix.doc_count() and search_config.get("allowlist"):
-    print("Indexing local data...")
-    all_files = []
-    for path in search_config["allowlist"]:
-        if os.path.isdir(path):
-            for root, _, files in os.walk(path):
-                for file in files:
-                    all_files.append(os.path.join(root, file))
-        elif os.path.isfile(path):
-            all_files.append(path)
-    search_engine_instance.index(all_files)
-    print("Indexing complete.")
-
 
 class CodeExecutionInput(BaseModel):
     """Input schema for the code execution tool."""
