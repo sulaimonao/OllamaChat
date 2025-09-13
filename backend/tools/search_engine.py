@@ -12,10 +12,12 @@ from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import faiss
+import logging
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from config import load_search_config
+from api.web_search import web_search
 
 # --- Document Parsing and Chunking ---
 
@@ -283,4 +285,8 @@ def local_search(query: str, top_k: int = 8) -> list[dict]:
     Use this tool when you need to answer questions based on local files,
     or when the user asks for information that might be in the local documentation.
     """
-    return search_engine_instance.search(query, top_k=top_k)
+    try:
+        return search_engine_instance.search(query, top_k=top_k)
+    except Exception as e:
+        logging.warning(f"Local search failed with error: {e}. Falling back to web search.")
+        return web_search(query)

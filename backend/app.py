@@ -21,6 +21,31 @@ from api import (
 from code_execution import executor
 from config import load_system_prompts
 from ollama_integration import call_ollama_api  # Updated import
+from contextlib import asynccontextmanager
+from tools.search_engine import search_engine_instance
+from config import load_search_config
+
+# --- App Lifespan (for startup/shutdown events) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("Starting up...")
+    search_config = load_search_config()
+    if not search_engine_instance.ix.doc_count() and search_config.get("allowlist"):
+        print("Indexing local data...")
+        all_files = []
+        for path in search_config["allowlist"]:
+            if os.path.isdir(path):
+                for root, _, files in os.walk(path):
+                    for file in files:
+                        all_files.append(os.path.join(root, file))
+            elif os.path.isfile(path):
+                all_files.append(path)
+        search_engine_instance.index(all_files)
+        print("Indexing complete.")
+    yield
+    # Shutdown
+    print("Shutting down...")
 
 # --- Load System Prompts ---
 SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "system_prompts")
@@ -39,7 +64,7 @@ except json.JSONDecodeError:
 models.Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI app
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -90,6 +115,10 @@ async def list_workspaces_endpoint():
 async def delete_workspace_endpoint(workspace_id: str):
     executor.delete_workspace(workspace_id)
     return {"message": f"Workspace {workspace_id} deleted"}
+
+@app.get("/")
+def root():
+    return {"ok": True, "service": "OllamaChat backend"}
 
 @app.get("/system_prompts")
 async def get_system_prompts_endpoint():
