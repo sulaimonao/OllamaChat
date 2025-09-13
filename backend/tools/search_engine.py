@@ -69,8 +69,10 @@ class SearchEngine:
         self.faiss_mapping_path = os.path.join(self.index_dir, "faiss_mapping.json")
         self.file_hashes_path = os.path.join(self.index_dir, "file_hashes.json")
 
-        os.makedirs(self.whoosh_dir, exist_ok=True)
-
+        self.ix = None
+        self.embedding_model = None
+        self.faiss_index = None
+        self.faiss_id_to_chunk = {}
         self.schema = Schema(
             title=TEXT(stored=True),
             path=ID(stored=True),
@@ -79,14 +81,18 @@ class SearchEngine:
             source_id=ID(stored=True)
         )
 
+    def load(self):
+        """Loads the search index. This should be called before any search or index operations."""
+        if self.ix is not None:
+            return
+
+        os.makedirs(self.whoosh_dir, exist_ok=True)
+
         try:
             self.ix = open_dir(self.whoosh_dir)
         except Exception:
             self.ix = create_in(self.whoosh_dir, self.schema)
 
-        self.embedding_model = None
-        self.faiss_index = None
-        self.faiss_id_to_chunk = {}
         if self.config.get("enable_hybrid", False):
             self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
             if os.path.exists(self.faiss_index_path):
@@ -272,9 +278,15 @@ class SearchEngine:
 
 # --- Tool Definition ---
 
-# This is a placeholder instance. The actual instance will be created in chat.py
-# with the proper configuration.
-search_engine_instance = SearchEngine()
+_search_engine_instance = None
+
+def get_search_engine():
+    """Returns a singleton instance of the SearchEngine."""
+    global _search_engine_instance
+    if _search_engine_instance is None:
+        _search_engine_instance = SearchEngine()
+        _search_engine_instance.load()
+    return _search_engine_instance
 
 @tool(args_schema=LocalSearchInput)
 def local_search(query: str, top_k: int = 8) -> list[dict]:
@@ -283,4 +295,5 @@ def local_search(query: str, top_k: int = 8) -> list[dict]:
     Use this tool when you need to answer questions based on local files,
     or when the user asks for information that might be in the local documentation.
     """
-    return search_engine_instance.search(query, top_k=top_k)
+    search_engine = get_search_engine()
+    return search_engine.search(query, top_k=top_k)

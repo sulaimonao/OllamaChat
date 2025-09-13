@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import json
 import os
+from contextlib import asynccontextmanager
+import glob
 
 from database import engine
 import models
@@ -18,9 +20,31 @@ from api import (
     custom_inference,
     code_execution,
 )
+from tools.live_browse import router as live_router
+from tools.search_engine import get_search_engine
 from code_execution import executor
 from config import load_system_prompts
 from ollama_integration import call_ollama_api  # Updated import
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles startup and shutdown events for the application.
+    """
+    # Initial indexing
+    print("--- Running initial indexing ---")
+    search_engine = get_search_engine()
+    local_data_dir = os.path.join(os.path.dirname(__file__), "local_data")
+    if os.path.exists(local_data_dir):
+        files_to_index = glob.glob(os.path.join(local_data_dir, "**/*"), recursive=True)
+        files_to_index = [f for f in files_to_index if os.path.isfile(f)]
+        if files_to_index:
+            search_engine.index(files_to_index)
+    print("--- Initial indexing complete ---")
+    yield
+    # Cleanup (optional)
+
 
 # --- Load System Prompts ---
 SYSTEM_PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "system_prompts")
@@ -39,7 +63,7 @@ except json.JSONDecodeError:
 models.Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI app
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -66,6 +90,7 @@ app.include_router(metrics.router)
 app.include_router(web_search.router)
 app.include_router(upload.router)
 app.include_router(code_execution.router)
+app.include_router(live_router)
 
 # --- Workspace Management Endpoints ---
 @app.post("/workspace/create")

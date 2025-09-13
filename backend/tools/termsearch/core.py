@@ -1,10 +1,19 @@
-import hashlib, time, sqlite3, urllib.parse, re, io
+import hashlib, time, sqlite3, urllib.parse, re, io, os
+from pathlib import Path
 from typing import List, Dict, Optional, Iterable, Tuple
 import httpx
 import trafilatura
 from bs4 import BeautifulSoup
 
+# ---------- Path Configuration ----------
+LOCAL_DATA_DIR = Path(__file__).resolve().parents[2] / "local_data"
+TERMSEARCH_DB_PATH = LOCAL_DATA_DIR / "termsearch" / "index.db"
+
 # ---------- Utilities ----------
+
+def _fts_safe(s: str) -> str:
+    """Wraps a string in double quotes for FTS5, escaping any interior quotes."""
+    return '"' + s.replace('"', '""') + '"'
 
 def normalize_url(u: str) -> str:
     try:
@@ -39,17 +48,26 @@ def seed_urls_from_sitemap(sitemap_url: str) -> List[str]:
 # ---------- Index (SQLite + FTS5) ----------
 
 class Index:
-    def __init__(self, path: str = "termsearch.db"):
+    def __init__(self, path: str):
         self.path = path
-        self._init_db()
+        self.conn = None
 
-    def _connect(self):
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    def load(self):
+        """Initializes the database connection and schema if not already loaded."""
+        if self.conn is not None:
+            return
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        self.conn = sqlite3.connect(self.path)
+        self.conn.row_factory = sqlite3.Row
+        self._init_db_schema()
 
-    def _init_db(self):
-        conn = self._connect()
+    def _get_conn(self):
+        if self.conn is None:
+            self.load()
+        return self.conn
+
+    def _init_db_schema(self):
+        conn = self._get_conn()
         cur = conn.cursor()
         cur.execute(
             "CREATE TABLE IF NOT EXISTS docs ("
@@ -82,7 +100,7 @@ class Index:
         conn.close()
 
     def upsert(self, url: str, title: str, text: str, html_hash: str) -> int:
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
         cur.execute("SELECT id, html_hash FROM docs WHERE url=?", (url,))
         row = cur.fetchone()
@@ -105,7 +123,7 @@ class Index:
         return doc_id
 
     def add_links(self, src_id: int, links: Iterable[Tuple[str, int]]):
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
         cur.executemany("INSERT INTO links(src, dst_url, depth) VALUES (?, ?, ?)", ((src_id, u, d) for u, d in links))
         conn.commit()
@@ -121,8 +139,9 @@ class Index:
 
     def query(self, text: str, limit: int = 10, site_filter: Optional[str] = None, mix: float = 0.0) -> List[Dict]:
         # Full-text search
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
+        safe_text = _fts_safe(text)
         if site_filter:
             cur.execute(
                 "SELECT d.id, d.url, d.title, snippet(docs_fts, 1, '<b>', '</b>', ' … ', 12) AS snippet, "
@@ -130,7 +149,7 @@ class Index:
                 "FROM docs_fts JOIN docs d ON d.id = docs_fts.rowid "
                 "WHERE docs_fts MATCH ? AND d.url LIKE ? "
                 "ORDER BY bm25 LIMIT ?",
-                (text, f"%{site_filter}%", limit*5)
+                (safe_text, f"%{site_filter}%", limit*5)
             )
         else:
             cur.execute(
@@ -139,7 +158,7 @@ class Index:
                 "FROM docs_fts JOIN docs d ON d.id = docs_fts.rowid "
                 "WHERE docs_fts MATCH ? "
                 "ORDER BY bm25 LIMIT ?",
-                (text, limit*5)
+                (safe_text, limit*5)
             )
         rows = cur.fetchall()
 
@@ -169,7 +188,7 @@ class Index:
         return out[:limit]
 
     def get(self, doc_id: int) -> Optional[Dict]:
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
         cur.execute("SELECT id, url, title, text, fetched_at FROM docs WHERE id=?", (doc_id,))
         row = cur.fetchone()
@@ -177,7 +196,7 @@ class Index:
         return dict(row) if row else None
 
     def all_docs(self):
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
         cursor = cur.execute("SELECT id, url, title, text FROM docs ORDER BY id ASC")
         for row in cursor:
@@ -186,7 +205,7 @@ class Index:
 
     def compute_pagerank(self, iters: int = 30, damping: float = 0.85) -> int:
         # Build adjacency: map url->id for dsts
-        conn = self._connect()
+        conn = self._get_conn()
         cur = conn.cursor()
         # Universe
         cur.execute("SELECT id, url FROM docs")
@@ -223,6 +242,17 @@ class Index:
         conn.commit()
         conn.close()
         return n
+
+# ---------- Singleton Getter ----------
+
+_index_instance: Optional[Index] = None
+
+def get_index(db_path: str = str(TERMSEARCH_DB_PATH)) -> Index:
+    global _index_instance
+    if _index_instance is None:
+        _index_instance = Index(db_path)
+        _index_instance.load()
+    return _index_instance
 
 # ---------- Crawler ----------
 

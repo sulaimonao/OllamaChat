@@ -1,0 +1,25 @@
+rss_feeds:
+  - url: http://feeds.reuters.com/reuters/topNews
+    name: Reuters Top News
+  - url: http://feeds.arstechnica.com/arstechnica/index/
+    name: Ars Technica
+  - url: https://www.theverge.com/rss/index.xml
+    name: The Verge
+  - url: https://feeds.npr.org/1001/rss.xml
+    name: NPR News
+  - url: https://news.ycombinator.com/rss
+    name: Hacker News
+
+site_search_templates:
+  - domain: arstechnica.com
+    search_url_template: "https://arstechnica.com/search/?ie=utf8&q={q}"
+    results_link_selector: "h3.title > a"
+  - domain: www.theverge.com
+    search_url_template: "https://www.theverge.com/search?q={q}"
+    results_link_selector: "h2.c-entry-box--compact__title > a"
+  - domain: www.reuters.com
+    search_url_template: "https://www.reuters.com/search/news?blob={q}"
+    results_link_selector: "h3.search-result-title > a"
+  - domain: www.npr.org
+    search_url_template: "https://www.npr.org/search?q={q}"
+    results_link_selector: "h3.title > a"
