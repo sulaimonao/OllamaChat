@@ -18,6 +18,7 @@ from api import (
     custom_inference,
     code_execution,
 )
+from tools.live_browse import router as live_router
 from code_execution import executor
 from config import load_system_prompts
 from ollama_integration import call_ollama_api  # Updated import
@@ -91,6 +92,7 @@ app.include_router(metrics.router)
 app.include_router(web_search.router)
 app.include_router(upload.router)
 app.include_router(code_execution.router)
+app.include_router(live_router)
 
 # --- Workspace Management Endpoints ---
 @app.post("/workspace/create")

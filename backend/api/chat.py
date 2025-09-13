@@ -13,6 +13,7 @@ from code_execution.executor import execute_code, read_file, write_file
 from config import load_system_prompts, load_search_config
 from tools.search_engine import local_search, search_engine_instance
 from api.web_search import web_search
+from tools.live_browse_tools import rss_latest, site_search, fetch_url
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
@@ -95,7 +96,7 @@ async def send_chat_message(chat_request: schemas.ChatRequest, db: Session = Dep
 
         tools = [local_search, code_execution_tool]
         if chat_request.use_browser:
-            tools.append(web_search)
+            tools.extend([rss_latest, site_search, fetch_url])
 
         agent = create_tool_calling_agent(llm, tools, prompt)
 

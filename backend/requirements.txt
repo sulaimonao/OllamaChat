@@ -26,3 +26,4 @@ trafilatura
 lxml
 typer
 rich
+feedparser

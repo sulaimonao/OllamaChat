@@ -1,0 +1,25 @@
+# Configuration for live web browsing sources
+# This file contains RSS feeds and site search templates for the live browsing tool.
+
+rss_feeds:
+  - name: "Reuters Top News"
+    url: "http://feeds.reuters.com/reuters/topNews"
+  - name: "Ars Technica"
+    url: "http://feeds.arstechnica.com/arstechnica/index/"
+  - name: "The Verge"
+    url: "https://www.theverge.com/rss/index.xml"
+  - name: "NPR News"
+    url: "https://feeds.npr.org/1001/rss.xml"
+  - name: "Hacker News"
+    url: "https://news.ycombinator.com/rss"
+
+site_search_templates:
+  - name: "Ars Technica Search"
+    url_template: "https://arstechnica.com/search/?query={q}"
+    css_selector: "header h2 a" # Selector for result links
+  - name: "Reuters Search"
+    url_template: "https://www.reuters.com/site-search/?query={q}"
+    css_selector: "a.media-story-card__title__3b4y3" # Selector for result links
+  - name: "The Verge Search"
+    url_template: "https://www.theverge.com/search?q={q}"
+    css_selector: "h2 a" # Selector for result links
