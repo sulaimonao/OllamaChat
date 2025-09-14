@@ -3,48 +3,59 @@ import feedparser
 import httpx
 import yaml
 from bs4 import BeautifulSoup
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from trafilatura import fetch_url, extract
-from typing import List, Dict, Any
+from trafilatura import extract
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
 import hashlib
 from .search_engine import SearchEngine
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # --- Pydantic Models ---
 
 class RssRequest(BaseModel):
-    pass
+    max_items: int = 20
 
 class RssResponseItem(BaseModel):
     title: str
     url: str
     published: str
 
+class RssResponse(BaseModel):
+    items: List[RssResponseItem]
+    error: Optional[str] = None
+
 class SiteSearchRequest(BaseModel):
     query: str
+    max_items: int = 20
 
 class SiteSearchResponseItem(BaseModel):
     title: str
     url: str
 
-class FetchRequest(BaseModel):
-    url: str
+class SiteSearchResponse(BaseModel):
+    items: List[SiteSearchResponseItem]
+    error: Optional[str] = None
 
-class FetchResponse(BaseModel):
+class FetchRequest(BaseModel):
+    urls: List[str]
+
+class FetchResponseItem(BaseModel):
     url: str
     title: str
     text: str
 
 class IngestRequest(BaseModel):
-    url: str
-    title: str
-    text: str
+    items: List[Dict[str, Any]]
 
 class IngestResponse(BaseModel):
     message: str
-    document_path: str
+    indexed_files: List[str]
 
 # --- Router ---
 
@@ -52,138 +63,202 @@ router = APIRouter()
 
 # --- Configuration ---
 
+DEFAULT_CONFIG = {
+  "rss_feeds": [
+    "https://feeds.arstechnica.com/arstechnica/index",
+    "https://www.theverge.com/rss/index.xml",
+    "https://www.reuters.com/rssFeed/topNews",
+    "https://hnrss.org/frontpage",
+    "https://www.npr.org/rss/rss.php?id=1001",
+    "https://www.nature.com/subjects/artificial-intelligence.rss",
+    "https://ai.googleblog.com/feeds/posts/default",
+    "https://openai.com/blog/rss.xml",
+    "https://www.deepmind.com/blog/rss.xml",
+    "https://venturebeat.com/category/ai/feed"
+  ],
+  "site_search_templates": [
+    {"domain":"arstechnica.com", "template":"https://arstechnica.com/search/?query={q}", "result_link_css":"ol.search-results li a"},
+    {"domain":"theverge.com",    "template":"https://www.theverge.com/search?q={q}",    "result_link_css":"a[data-analytics-link='article']"},
+    {"domain":"reuters.com",     "template":"https://www.reuters.com/site-search/?query={q}", "result_link_css":"a.search-result-title"},
+    {"domain":"npr.org",         "template":"https://www.npr.org/search?query={q}",     "result_link_css":"article .item-info a"},
+    {"domain":"nature.com",      "template":"https://www.nature.com/search?q={q}",      "result_link_css":"li.app-article-list-row__item a"},
+    {"domain":"venturebeat.com", "template":"https://venturebeat.com/?s={q}",           "result_link_css":"h2 > a"},
+    {"domain":"techcrunch.com",  "template":"https://techcrunch.com/search/{q}/",       "result_link_css":"a.post-block__title__link"}
+  ],
+  "ingest_policy": {
+    "min_reliability": 0.55,
+    "freshness_days": 7,
+    "blocklist_domains": ["x.com", "pinterest.com", "facebook.com"],
+    "allowlist_domains": [],
+    "max_per_domain": 30,
+    "dedupe_by": ["canonical_url","sha1_text"]
+  }
+}
+
 def get_config():
-    with open("backend/config/sources.yaml", "r") as f:
-        return yaml.safe_load(f)
+    here = Path(__file__).resolve()
+    cfg_path = here.parents[1] / "config" / "sources.yaml"
+    if cfg_path.exists():
+        with cfg_path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        merged = DEFAULT_CONFIG.copy()
+        for k,v in (data or {}).items():
+            merged[k] = v
+        return merged
+    import logging
+    logging.getLogger(__name__).warning("sources.yaml not found; using DEFAULT_CONFIG")
+    return DEFAULT_CONFIG
 
 # --- Endpoints ---
 
-@router.post("/tools/live/rss_latest", response_model=List[RssResponseItem])
-async def rss_latest(request: RssRequest):
+@router.get("/tools/live/sources")
+def get_sources_config():
+    """Returns the effective merged config."""
+    return get_config()
+
+@router.post("/tools/live/rss_latest", response_model=RssResponse)
+async def rss_latest(request: RssRequest) -> RssResponse:
     """
     Load RSS feeds from sources.yaml and return the latest items.
     """
-    config = get_config()
-    rss_feeds = config.get("rss_feeds", [])
-    items = []
+    try:
+        config = get_config()
+        rss_feeds = config.get("rss_feeds", [])
+        items = []
 
-    async def fetch_feed(feed):
-        try:
-            d = feedparser.parse(feed["url"])
-            for entry in d.entries:
-                items.append(
-                    RssResponseItem(
-                        title=entry.title,
-                        url=entry.link,
-                        published=entry.get("published", "N/A"),
+        async def fetch_feed(feed_url):
+            try:
+                d = feedparser.parse(feed_url)
+                for entry in d.entries:
+                    items.append(
+                        RssResponseItem(
+                            title=entry.title,
+                            url=entry.link,
+                            published=entry.get("published", "N/A"),
+                        )
                     )
-                )
-        except Exception as e:
-            # In a real app, you'd want to log this error
-            print(f"Error fetching RSS feed {feed['url']}: {e}")
+            except Exception as e:
+                logger.warning(f"Error fetching RSS feed {feed_url}: {e}")
 
-    await asyncio.gather(*[fetch_feed(feed) for feed in rss_feeds])
-    return items
+        await asyncio.gather(*[fetch_feed(url) for url in rss_feeds])
+        return RssResponse(items=items[:request.max_items])
+    except Exception as e:
+        logger.warning("rss_latest failed: %s", e)
+        return RssResponse(items=[], error=str(e))
 
-@router.post("/tools/live/site_search", response_model=List[SiteSearchResponseItem])
-async def site_search(request: SiteSearchRequest):
+
+@router.post("/tools/live/site_search", response_model=SiteSearchResponse)
+async def site_search(request: SiteSearchRequest) -> SiteSearchResponse:
     """
     For each template in sources.yaml, format {q}, GET page, parse links, and return them.
     """
-    config = get_config()
-    templates = config.get("site_search_templates", [])
-    items = []
+    try:
+        config = get_config()
+        templates = config.get("site_search_templates", [])
+        items = []
 
-    async with httpx.AsyncClient() as client:
-        for template in templates:
-            url = template["url_template"].format(q=request.query)
-            try:
-                response = await client.get(url, follow_redirects=True, timeout=15)
-                response.raise_for_status()
-                soup = BeautifulSoup(response.text, "html.parser")
-                links = soup.select(template["css_selector"])
-                for link in links:
-                    items.append(
-                        SiteSearchResponseItem(
-                            title=link.get_text(strip=True),
-                            url=link.get("href")
+        async with httpx.AsyncClient() as client:
+            for template in templates:
+                url = template["template"].format(q=request.query)
+                try:
+                    response = await client.get(url, follow_redirects=True, timeout=10)
+                    response.raise_for_status()
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    links = soup.select(template["result_link_css"])
+                    for link in links:
+                        items.append(
+                            SiteSearchResponseItem(
+                                title=link.get_text(strip=True),
+                                url=link.get("href")
+                            )
                         )
-                    )
-            except httpx.RequestError as e:
-                print(f"Error fetching {url}: {e}")
-            except Exception as e:
-                print(f"Error processing {url}: {e}")
+                except httpx.RequestError as e:
+                    logger.warning(f"Error fetching {url}: {e}")
+                except Exception as e:
+                    logger.warning(f"Error processing {url}: {e}")
 
-    # Deduplicate results
-    seen_urls = set()
-    deduped_items = []
-    for item in items:
-        if item.url and item.url not in seen_urls:
-            seen_urls.add(item.url)
-            deduped_items.append(item)
+        seen_urls = set()
+        deduped_items = []
+        for item in items:
+            if item.url and item.url not in seen_urls:
+                seen_urls.add(item.url)
+                deduped_items.append(item)
 
-    return deduped_items
+        return SiteSearchResponse(items=deduped_items[:request.max_items])
+    except Exception as e:
+        logger.warning("site_search failed: %s", e)
+        return SiteSearchResponse(items=[], error=str(e))
 
-@router.post("/tools/live/fetch", response_model=FetchResponse)
+@router.post("/tools/live/fetch", response_model=List[FetchResponseItem])
 async def fetch(request: FetchRequest):
     """
     Fetch a URL, extract content with trafilatura, and return the text.
     """
-    try:
-        # Use httpx to fetch the page content
-        async with httpx.AsyncClient() as client:
-            response = await client.get(request.url, follow_redirects=True, timeout=15)
-            response.raise_for_status()
-            html_content = response.text
+    async def fetch_one(url: str):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, follow_redirects=True, timeout=15)
+                response.raise_for_status()
+                html_content = response.text
 
-        # Use trafilatura to extract the main content and title
-        text = extract(html_content, include_comments=False, include_tables=False)
+            text = extract(html_content, include_comments=False, include_tables=False)
+            soup = BeautifulSoup(html_content, 'html.parser')
+            title = soup.title.string if soup.title else "No title found"
 
-        # Use BeautifulSoup to get the title
-        soup = BeautifulSoup(html_content, 'html.parser')
-        title = soup.title.string if soup.title else "No title found"
+            if not text:
+                return None
 
-        if not text:
-            raise HTTPException(status_code=404, detail="Could not extract content from URL.")
+            return FetchResponseItem(url=url, title=title, text=text)
+        except httpx.RequestError as e:
+            logger.warning(f"Error fetching URL {url}: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"An error occurred processing {url}: {e}")
+            return None
 
-        return FetchResponse(url=request.url, title=title, text=text)
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching URL: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+    tasks = [fetch_one(url) for url in request.urls]
+    results = await asyncio.gather(*tasks)
+    return [res for res in results if res]
+
 
 @router.post("/tools/live/ingest", response_model=IngestResponse)
 async def ingest(request: IngestRequest):
     """
     Write content to a Markdown file with YAML front-matter and trigger the indexer.
     """
-    data_dir = "backend/local_data/web_live/"
-    os.makedirs(data_dir, exist_ok=True)
+    data_dir = Path("backend/local_data/web_live/")
+    data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate a unique filename
-    url_hash = hashlib.sha256(request.url.encode()).hexdigest()
-    filename = f"{url_hash}.md"
-    filepath = os.path.join(data_dir, filename)
+    indexed_files = []
+    for item in request.items:
+        try:
+            url_hash = hashlib.sha256(item['url'].encode()).hexdigest()
+            # Ensure subdirectory exists, e.g., web_live/ab/cd/abcdef...
+            subdir = data_dir / url_hash[:2] / url_hash[2:4]
+            subdir.mkdir(parents=True, exist_ok=True)
 
-    # Create the content with YAML front-matter
-    ingested_at = datetime.utcnow().isoformat()
-    front_matter = {
-        "source": "web_live",
-        "url": request.url,
-        "title": request.title,
-        "ingested_at": ingested_at,
-    }
-    content = f"---\n{yaml.dump(front_matter)}---\n\n{request.text}"
+            filepath = subdir / f"{url_hash}.md"
 
-    # Write the file
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
+            ingested_at = datetime.utcnow().isoformat()
+            front_matter = {
+                "source": "web_live",
+                "url": item['url'],
+                "title": item['title'],
+                "ingested_at": ingested_at,
+            }
+            content = f"---\n{yaml.dump(front_matter)}---\n\n{item['text']}"
 
-    # Trigger the indexer
-    try:
-        search_engine = SearchEngine()
-        search_engine.index([filepath])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to index document: {e}")
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+            indexed_files.append(str(filepath))
+        except Exception as e:
+            logger.error(f"Failed to ingest item {item.get('url', 'N/A')}: {e}")
 
-    return IngestResponse(message="Document ingested and indexed.", document_path=filepath)
+    if indexed_files:
+        try:
+            search_engine = SearchEngine()
+            search_engine.index(indexed_files)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to index documents: {e}")
+
+    return IngestResponse(message=f"Ingested and indexed {len(indexed_files)} documents.", indexed_files=indexed_files)

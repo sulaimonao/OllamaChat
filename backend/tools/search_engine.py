@@ -60,6 +60,24 @@ class LocalSearchInput(BaseModel):
     query: str = Field(description="The search query to execute.")
     top_k: int = Field(default=8, description="The number of top results to return.")
 
+# --- Fake Embedder for Testing ---
+
+class FakeEmbedder:
+    def __init__(self, model_name):
+        self.model_name = model_name
+        self.dim = 384  # all-MiniLM-L6-v2 has dimension 384
+
+    def encode(self, texts, convert_to_tensor=False):
+        # Return random embeddings
+        embeddings = np.random.rand(len(texts), self.dim).astype('float32')
+        if convert_to_tensor:
+            import torch
+            return torch.from_numpy(embeddings)
+        return embeddings
+
+    def get_sentence_embedding_dimension(self):
+        return self.dim
+
 # --- The SearchEngine Class ---
 
 class SearchEngine:
@@ -90,7 +108,11 @@ class SearchEngine:
         self.faiss_index = None
         self.faiss_id_to_chunk = {}
         if self.config.get("enable_hybrid", False):
-            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            if os.environ.get("USE_FAKE_EMBEDDER") == "1":
+                self.embedding_model = FakeEmbedder('all-MiniLM-L6-v2')
+            else:
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
             if os.path.exists(self.faiss_index_path):
                 self.faiss_index = faiss.read_index(self.faiss_index_path)
                 with open(self.faiss_mapping_path, 'r') as f:
@@ -271,6 +293,20 @@ class SearchEngine:
         # Format the results
         final_results = [res['doc'] for res in sorted_results]
         return final_results[:top_k]
+
+    def get_document_by_path(self, file_path: str) -> dict | None:
+        """Retrieves a document's content and metadata by its file path."""
+        with self.ix.searcher() as searcher:
+            query = QueryParser("path", self.ix.schema).parse(file_path)
+            results = searcher.search(query, limit=1)
+            if results:
+                hit = results[0]
+                return {
+                    "title": hit.get("title"),
+                    "content": hit.get("content"),
+                    "path": hit.get("path"),
+                }
+        return None
 
 # --- Tool Definition ---
 
