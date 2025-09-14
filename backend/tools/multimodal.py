@@ -73,7 +73,7 @@ asr_model = None
 
 # Load BLIP model
 try:
-    model_name = IMAGE_CONFIG.get("caption_model", "blip-base")
+    model_name = IMAGE_CONFIG.get("caption_model", "base")
     model_path = f"Salesforce/blip-image-captioning-{model_name}"
     blip_processor = BlipProcessor.from_pretrained(model_path)
     blip_model = BlipForConditionalGeneration.from_pretrained(model_path)
@@ -86,7 +86,7 @@ except Exception as e:
 # Load OCR model
 if IMAGE_CONFIG.get("ocr") == "paddleocr":
     try:
-        ocr_reader = paddleocr.PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+        ocr_reader = paddleocr.PaddleOCR(use_angle_cls=True, lang='en')
         print("PaddleOCR model loaded successfully.")
     except Exception as e:
         ocr_reader = None

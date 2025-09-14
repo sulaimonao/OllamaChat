@@ -29,6 +29,7 @@ from tools.live_browse import (
     SiteSearchResponse,
     FetchResponseItem,
 )
+from tools.live_browse_utils import compute_reliability, pick_hubs
 from tools.multimodal import (
     image_analyze,
     audio_transcribe,
@@ -100,48 +101,51 @@ async def _extract_links_from_html(html_content: str, base_url: str) -> List[str
                 pass
     return list(links)
 
-async def homepage_fallback_strategy(query: str):
-    logger.info("Executing homepage fallback strategy")
+async def browse_first_pipeline(query: str):
     config = get_config()
+    policy = config.get("ingest_policy", {})
+    path_used = "rss"
+    try:
+        rss_resp = await rss_latest(RssRequest(max_items=5))
+        urls = [i.url for i in rss_resp.items]
+    except Exception:
+        urls = []
 
-    ai_keywords = ['ai', 'artificial intelligence', 'ml', 'machine learning']
-    is_ai_query = any(keyword in query.lower() for keyword in ai_keywords)
+    if not urls:
+        path_used = "site_search"
+        try:
+            ss_resp = await site_search(SiteSearchRequest(query=query, max_items=5))
+            urls = [i.url for i in ss_resp.items]
+        except Exception:
+            urls = []
 
-    if is_ai_query:
-        hubs = [
-            "https://www.nature.com/subjects/artificial-intelligence",
-            "https://ai.googleblog.com/",
-            "https://openai.com/blog",
-            "https://www.deepmind.com/blog",
-            "https://venturebeat.com/category/ai/",
-        ]
-        logger.info("Using AI-focused hubs for fallback.")
-    else:
-        hubs = [
-            "https://www.reuters.com/",
-            "https://www.theverge.com/",
-            "https://www.npr.org/sections/news/",
-            "https://news.ycombinator.com/",
-        ]
-        logger.info("Using general news hubs for fallback.")
+    if not urls:
+        path_used = "homepage_fallback"
+        urls = pick_hubs(query, config)[:5]
 
-    fetched_pages = await fetch(FetchRequest(urls=hubs[:5]))
+    fetched = []
+    if urls:
+        fetched = await fetch(FetchRequest(urls=urls))
 
-    all_links = []
-    for page in fetched_pages:
-        links = await _extract_links_from_html(page.text, page.url)
-        all_links.extend(links)
+    accepted = []
+    for item in fetched:
+        d = item.dict()
+        score = compute_reliability(d, policy)
+        if score >= policy.get("min_reliability", 0):
+            d["score"] = score
+            accepted.append(d)
 
-    if not all_links:
-        logger.warning("No links found in fallback hubs.")
-        return
+    if accepted:
+        ingest_items = [{"url": d["url"], "title": d.get("title", ""), "text": d["text"]} for d in accepted]
+        await ingest(IngestRequest(items=ingest_items))
 
-    fetched_articles = await fetch(FetchRequest(urls=list(set(all_links))[:20]))
-
-    if fetched_articles:
-        ingest_req = IngestRequest(items=[item.dict() for item in fetched_articles])
-        await ingest(ingest_req)
-        logger.info(f"Fallback ingested {len(fetched_articles)} documents.")
+    summary_lines = []
+    sources = []
+    for i, d in enumerate(accepted, 1):
+        summary_lines.append(f"{i}. {d['title']} ({d['url']})")
+        sources.append({"url": d['url'], "title": d['title']})
+    summary = "\n".join(summary_lines) if summary_lines else "No live results found."
+    return summary, sources, path_used
 
 
 @router.post("/chat", response_model=schemas.ChatResponse)
@@ -210,8 +214,18 @@ async def send_chat_message(
         code_execution_tool = create_code_execution_tool(current_workspace_id)
 
         if use_browser:
-            logger.info("Attempting live browse...")
-            # (Browser logic remains the same)
+            summary, sources, path_used = await browse_first_pipeline(user_message)
+            logger.info(f"browse_path={path_used}")
+            model_reply = summary
+            crud.create_message(db, session_obj.id, sender="model", content=model_reply)
+            reasoning_steps.append({"tool": f"browse_{path_used}", "tool_input": {"query": user_message}, "observation": {"sources": sources}})
+            return schemas.ChatResponse(
+                session_id=session_obj.id,
+                user_message=user_message,
+                model_message=model_reply,
+                model_id=model_id,
+                reasoning=reasoning_steps,
+            )
 
         system_prompt_key = persona or "default"
         system_prompt = system_prompts.get(system_prompt_key, system_prompts["default"])["prompt"]

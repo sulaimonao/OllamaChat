@@ -1,5 +1,5 @@
 image:
-  caption_model: "blip-base"     # or "blip-large"
+  caption_model: "base"     # or "large"
   ocr: "paddleocr"               # or "tesseract"
   detect_objects: false          # toggle YOLOv8n
 audio:

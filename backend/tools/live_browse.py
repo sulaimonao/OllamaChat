@@ -49,6 +49,7 @@ class FetchResponseItem(BaseModel):
     url: str
     title: str
     text: str
+    meta: Dict[str, Any] = {}
 
 class IngestRequest(BaseModel):
     items: List[Dict[str, Any]]
@@ -92,6 +93,24 @@ DEFAULT_CONFIG = {
     "allowlist_domains": [],
     "max_per_domain": 30,
     "dedupe_by": ["canonical_url","sha1_text"]
+  },
+  "topic_hubs": {
+    "general": [
+      "https://www.reuters.com/",
+      "https://www.bbc.com/news",
+      "https://www.npr.org/sections/news/",
+      "https://arstechnica.com/",
+      "https://www.theverge.com/",
+      "https://news.ycombinator.com/"
+    ],
+    "ai": [
+      "https://www.nature.com/subjects/artificial-intelligence",
+      "https://ai.googleblog.com/",
+      "https://openai.com/blog",
+      "https://www.deepmind.com/blog",
+      "https://venturebeat.com/category/ai/",
+      "https://techcrunch.com/tag/ai/"
+    ]
   }
 }
 
@@ -196,6 +215,7 @@ async def fetch(request: FetchRequest):
     """
     async def fetch_one(url: str):
         try:
+            await asyncio.sleep(0.5)
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, follow_redirects=True, timeout=15)
                 response.raise_for_status()
@@ -208,7 +228,8 @@ async def fetch(request: FetchRequest):
             if not text:
                 return None
 
-            return FetchResponseItem(url=url, title=title, text=text)
+            meta = {"fetched_at": datetime.utcnow().isoformat(), "length": len(text)}
+            return FetchResponseItem(url=url, title=title, text=text, meta=meta)
         except httpx.RequestError as e:
             logger.warning(f"Error fetching URL {url}: {e}")
             return None
@@ -232,23 +253,49 @@ async def ingest(request: IngestRequest):
     indexed_files = []
     for item in request.items:
         try:
-            url_hash = hashlib.sha256(item['url'].encode()).hexdigest()
-            # Ensure subdirectory exists, e.g., web_live/ab/cd/abcdef...
-            subdir = data_dir / url_hash[:2] / url_hash[2:4]
-            subdir.mkdir(parents=True, exist_ok=True)
+            url = item['url']
+            text = item['text']
+            title = item.get('title', '')
+            canonical_url = item.get('canonical_url', url)
+            sha1_text = hashlib.sha1(text.encode('utf-8')).hexdigest()
+            sha16 = sha1_text[:16]
+            domain = httpx.URL(canonical_url).host or "unknown"
+            domain_dir = data_dir / domain
+            domain_dir.mkdir(parents=True, exist_ok=True)
 
-            filepath = subdir / f"{url_hash}.md"
+            # dedupe by canonical_url or sha1_text
+            existing_canon = set()
+            existing_sha = set()
+            for fp in domain_dir.glob("*.md"):
+                try:
+                    with fp.open('r', encoding='utf-8') as f:
+                        if f.readline().strip() != '---':
+                            continue
+                        meta_lines = []
+                        for line in f:
+                            if line.strip() == '---':
+                                break
+                            meta_lines.append(line)
+                    meta = yaml.safe_load(''.join(meta_lines)) or {}
+                    existing_canon.add(meta.get('canonical_url'))
+                    existing_sha.add(meta.get('sha1_text'))
+                except Exception:
+                    continue
+            if canonical_url in existing_canon or sha1_text in existing_sha:
+                continue
 
+            filepath = domain_dir / f"{sha16}.md"
             ingested_at = datetime.utcnow().isoformat()
             front_matter = {
                 "source": "web_live",
-                "url": item['url'],
-                "title": item['title'],
+                "url": url,
+                "canonical_url": canonical_url,
+                "title": title,
+                "sha1_text": sha1_text,
                 "ingested_at": ingested_at,
             }
-            content = f"---\n{yaml.dump(front_matter)}---\n\n{item['text']}"
-
-            with open(filepath, "w", encoding="utf-8") as f:
+            content = f"---\n{yaml.dump(front_matter)}---\n\n{text}"
+            with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
             indexed_files.append(str(filepath))
         except Exception as e:

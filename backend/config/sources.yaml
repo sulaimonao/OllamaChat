@@ -51,3 +51,10 @@
 #   allowlist_domains": []
 #   max_per_domain: 30
 #   dedupe_by": ["canonical_url", "sha1_text"]
+# topic_hubs:
+#   general:
+#     - "https://www.reuters.com/"
+#     - "https://www.bbc.com/news"
+#   ai:
+#     - "https://www.nature.com/subjects/artificial-intelligence"
+#     - "https://openai.com/blog"

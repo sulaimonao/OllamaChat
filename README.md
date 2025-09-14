@@ -4,6 +4,8 @@ This repository contains a complete chat interface application. The app lets use
 
 ## Features
 - **Local Search:** The model can search local documents to answer questions.
+- **Live Browsing:** When `use_browser` is enabled, the backend fetches current news from RSS feeds, site search or topic hubs and returns a summary with citations. Sources are saved under `backend/local_data/web_live` for hybrid search.
+- **Multimodal Ingestion:** Images, audio and video can be analyzed and transcribed. Extracted text is written to `backend/local_data/mm` so text-only models can reference it.
 - Send messages to language models.
 - Select a model for each conversation.
 - Store chat messages (user and model responses) in an SQLite database.
@@ -105,6 +107,13 @@ ollama pull {model choice}
    uvicorn app:app --reload
    ```
    The backend server will run at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+   A root health check is available at `/` and `/healthz`.
+
+### Live Browsing
+The live browsing tools read their configuration from `backend/config/sources.yaml` (optional). If the file is absent the defaults in code are used. To enable browsing in the chat UI, toggle the **Use Browser** option. Retrieved documents are stored in `backend/local_data/web_live` and reindexed for search.
+
+### Multimodal
+Optional models and settings are configured in `backend/config/mm.yaml`. Endpoints under `/tools/mm/*` handle image captioning/OCR, audio transcription, video keyframes and ingestion. The backend will continue to run even if these models fail to load.
 
 ### Frontend
 1. Navigate to the `frontend` folder:
