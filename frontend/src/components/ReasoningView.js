@@ -101,10 +101,21 @@ const ReasoningView = ({ reasoning }) => {
           const isVideo = step.tool === 'multimodal_video_analyzer';
           const isImage = step.tool === 'multimodal_image_analyzer';
           const isAudio = step.tool === 'multimodal_audio_analyzer';
+          const isBrowse = step.tool && step.tool.startsWith('browse_');
           const isMultimodal = isVideo || isImage || isAudio;
 
           let observationContent;
-          if (typeof step.observation !== 'object' || step.observation === null) {
+          if (isBrowse && step.observation && Array.isArray(step.observation.sources)) {
+            observationContent = (
+              <List dense>
+                {step.observation.sources.map((s, i) => (
+                  <ListItem key={i} component="a" href={s.url} target="_blank">
+                    <ListItemText primary={s.title} secondary={s.url} />
+                  </ListItem>
+                ))}
+              </List>
+            );
+          } else if (typeof step.observation !== 'object' || step.observation === null) {
             observationContent = <CodeBlock language="text" value={String(step.observation)} />;
           } else if (isVideo) {
             observationContent = <VideoAnalysisViewer observation={step.observation} />;
