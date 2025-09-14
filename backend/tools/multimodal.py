@@ -30,7 +30,7 @@ class AudioTranscriptionResponse(BaseModel):
 
 class VideoAnalysisResponse(BaseModel):
     summary: str
-    frames: List[Dict[str, Any]]
+    scenes: List[Dict[str, Any]]
     transcript: str
     artifact_path: str
 
@@ -204,7 +204,7 @@ async def video_analyze(file: UploadFile = File(...)):
     video_path_str = str(p)
 
     transcript = ""
-    frames_data = []
+    scenes_data = []
     summary = ""
 
     video_artifacts_dir = p.parent / p.stem
@@ -253,17 +253,19 @@ async def video_analyze(file: UploadFile = File(...)):
                         result = ocr_reader.ocr(img_path, cls=True)
                         if result and result[0] is not None:
                             frame_info["ocr"] = "\n".join([line[1][0] for line in result[0]])
-                    frames_data.append(frame_info)
+                    scenes_data.append(frame_info)
         except Exception:
             pass
 
-        summary = " ".join([f["caption"] for f in frames_data if f["caption"]])
+        summary = " ".join([f["caption"] for f in scenes_data if f["caption"]])
 
     except Exception as e:
         summary = f"A fatal error occurred during video analysis: {e}"
 
     return VideoAnalysisResponse(
-        summary=summary, frames=frames_data, transcript=transcript,
+        summary=summary if summary else "No keyframes detected; only base metadata extracted.",
+        scenes=scenes_data,
+        transcript=transcript,
         artifact_path=str(p.relative_to(MM_DIR))
     )
 

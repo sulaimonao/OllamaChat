@@ -13,6 +13,7 @@ import hashlib
 from .search_engine import SearchEngine
 from pathlib import Path
 import logging
+from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,20 @@ def get_config():
     import logging
     logging.getLogger(__name__).warning("sources.yaml not found; using DEFAULT_CONFIG")
     return DEFAULT_CONFIG
+
+
+def canonicalize_url(url: str) -> str:
+    """Normalize URL for deduplication."""
+    try:
+        parsed = urlparse(url)
+        scheme = parsed.scheme.lower()
+        netloc = parsed.netloc.lower()
+        path = parsed.path.lower()
+        if path.endswith('/') and path != '/':
+            path = path[:-1]
+        return urlunparse((scheme, netloc, path, '', '', ''))
+    except Exception:
+        return url
 
 # --- Endpoints ---
 
@@ -256,10 +271,10 @@ async def ingest(request: IngestRequest):
             url = item['url']
             text = item['text']
             title = item.get('title', '')
-            canonical_url = item.get('canonical_url', url)
+            canonical_url = canonicalize_url(item.get('canonical_url', url))
             sha1_text = hashlib.sha1(text.encode('utf-8')).hexdigest()
-            sha16 = sha1_text[:16]
-            domain = httpx.URL(canonical_url).host or "unknown"
+            url_hash = hashlib.sha1(canonical_url.encode('utf-8')).hexdigest()[:16]
+            domain = urlparse(canonical_url).netloc or "unknown"
             domain_dir = data_dir / domain
             domain_dir.mkdir(parents=True, exist_ok=True)
 
@@ -277,14 +292,14 @@ async def ingest(request: IngestRequest):
                                 break
                             meta_lines.append(line)
                     meta = yaml.safe_load(''.join(meta_lines)) or {}
-                    existing_canon.add(meta.get('canonical_url'))
+                    existing_canon.add(canonicalize_url(meta.get('canonical_url', '')))
                     existing_sha.add(meta.get('sha1_text'))
                 except Exception:
                     continue
             if canonical_url in existing_canon or sha1_text in existing_sha:
                 continue
 
-            filepath = domain_dir / f"{sha16}.md"
+            filepath = domain_dir / f"{url_hash}.md"
             ingested_at = datetime.utcnow().isoformat()
             front_matter = {
                 "source": "web_live",

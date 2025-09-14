@@ -201,7 +201,7 @@ async def send_chat_message(
                 elif modality == "video":
                     analysis_result = await video_analyze(file)
                     analysis_summary = f"Video Analysis:\nSummary: {analysis_result.summary}\nTranscript: {analysis_result.transcript}"
-                    fragments = analysis_result.frames
+                    fragments = analysis_result.scenes
                     if analysis_result.transcript: fragments.append({"type": "transcript", "text": analysis_result.transcript})
                     payload = IngestPayload(modality="video", metadata={"original_file": file.filename}, text=analysis_summary, fragments=fragments)
                     await mm_ingest(payload)
