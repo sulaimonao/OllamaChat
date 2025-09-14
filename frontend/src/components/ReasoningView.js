@@ -24,11 +24,11 @@ const VideoAnalysisViewer = ({ observation }) => {
                     </Typography>
                 </>
             )}
-            {observation.frames && observation.frames.length > 0 && (
+            {observation.scenes && observation.scenes.length > 0 && (
                 <>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Keyframes:</Typography>
                     <ImageList cols={3} rowHeight={164}>
-                        {observation.frames.map((frame, index) => {
+                        {observation.scenes.map((frame, index) => {
                             const imageUrl = `${API_URL}/tools/mm/artifacts/${frame.path}`;
                             return (
                                 <ImageListItem key={index}>
