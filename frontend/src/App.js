@@ -52,30 +52,33 @@ function App() {
     }
   }, [sessionId, selectedModel]); // Depend on selectedModel as well
 
-  const handleSendMessage = async (messageText, persona, fileInfo, imageBase64, reasoning_style, useBrowser) => {
-    console.log("handleSendMessage called. sessionId:", sessionId, "selectedModel:", selectedModel, "persona", persona, "useBrowser", useBrowser);
+  const handleSendMessage = async (messageText, persona, file, useBrowser) => {
+    if (!sessionId || !selectedModel) {
+        alert("Session or model not ready.");
+        return;
+    }
     setIsLoading(true);
     try {
-        const fullMessage = fileInfo ? `${messageText}\n${fileInfo}` : messageText;
         const currentSession = sessions.find((s) => s.id === sessionId);
         const workspaceId = currentSession ? currentSession.workspace_id : null;
-        const response = await sendChatMessage(sessionId, selectedModel, fullMessage, persona, imageBase64, reasoning_style, useBrowser, workspaceId);
 
-        // Create new message array
+        const response = await sendChatMessage(sessionId, selectedModel, messageText, persona, file, useBrowser, workspaceId);
+
         const newMessages = [
-            ...messages, // keep existing messages
+            ...messages,
             { sender: 'user', content: response.user_message },
-            { sender: 'model', content: response.model_message, browser_results: response.browser_results, reasoning: response.reasoning },
-        ]
-        setMessages(newMessages)
+            { sender: 'model', content: response.model_message, reasoning: response.reasoning },
+        ];
+        setMessages(newMessages);
 
     } catch (error) {
         console.error('Error sending message:', error);
-        alert('Error sending message');
+        const errorMsg = error.response?.data?.detail || 'An unknown error occurred.';
+        alert(`Error: ${errorMsg}`);
     } finally {
         setIsLoading(false);
     }
-};
+  };
 
   const loadChatHistory = async (sessionId) => {
     try {

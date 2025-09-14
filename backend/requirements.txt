@@ -27,3 +27,9 @@ lxml
 typer
 rich
 feedparser
+opencv-python
+paddlepaddle
+paddleocr
+faster-whisper
+scenedetect[opencv]
+ultralytics

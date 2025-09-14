@@ -8,20 +8,26 @@
       return response.data;
     };
 
-    // Updated to include reasoning_style and image
-    export const sendChatMessage = async (sessionId, modelId, message, persona, imageBase64, reasoning_style, useBrowser, workspaceId) => {
-      const payload = {
-        session_id: sessionId,
-        model_id: modelId,
-        message: message,
-        reasoning_style: reasoning_style,
-        image: imageBase64, // Add image to payload
-        persona: persona,
-        use_browser: useBrowser,
-        workspace_id: workspaceId
-      };
-      console.log("Sending payload:", payload); // Add this for debugging!
-      const response = await axios.post(`${API_URL}/chat`, payload);
+    export const sendChatMessage = async (sessionId, modelId, message, persona, file, useBrowser, workspaceId) => {
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+      formData.append('model_id', modelId);
+      formData.append('message', message);
+      formData.append('persona', persona || '');
+      formData.append('use_browser', useBrowser);
+      if (workspaceId) {
+        formData.append('workspace_id', workspaceId);
+      }
+
+      if (file) {
+        formData.append('file', file);
+      }
+
+      const response = await axios.post(`${API_URL}/chat`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     };
 

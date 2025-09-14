@@ -1,0 +1,18 @@
+image:
+  caption_model: "blip-base"     # or "blip-large"
+  ocr: "paddleocr"               # or "tesseract"
+  detect_objects: false          # toggle YOLOv8n
+audio:
+  asr_model: "faster-whisper-medium"
+  vad: true
+  max_duration_min: 30
+video:
+  max_duration_min: 20
+  keyframes_per_minute: 6
+  run_ocr_on_keyframes: true
+  run_caption_on_keyframes: true
+ingest:
+  enable: true
+  bulk_reindex_after: 5
+limits:
+  upload_mb: 200
