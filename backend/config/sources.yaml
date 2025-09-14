@@ -1,25 +1,53 @@
-# Configuration for live web browsing sources
-# This file contains RSS feeds and site search templates for the live browsing tool.
+# This is an optional configuration file. If it exists, it will be merged
+# with the built-in `DEFAULT_CONFIG` in `backend/tools/live_browse.py`.
+# You can override specific keys (e.g., just `rss_feeds`) or the entire config.
+#
+# Example of overriding just the RSS feeds:
+# rss_feeds:
+#   - "https://www.my-favorite-news.com/rss.xml"
 
-rss_feeds:
-  - name: "Reuters Top News"
-    url: "http://feeds.reuters.com/reuters/topNews"
-  - name: "Ars Technica"
-    url: "http://feeds.arstechnica.com/arstechnica/index/"
-  - name: "The Verge"
-    url: "https://www.theverge.com/rss/index.xml"
-  - name: "NPR News"
-    url: "https://feeds.npr.org/1001/rss.xml"
-  - name: "Hacker News"
-    url: "https://news.ycombinator.com/rss"
+# The default structure is shown below for reference. You can copy, paste, and
+# modify it here to customize your browsing sources.
 
-site_search_templates:
-  - name: "Ars Technica Search"
-    url_template: "https://arstechnica.com/search/?query={q}"
-    css_selector: "header h2 a" # Selector for result links
-  - name: "Reuters Search"
-    url_template: "https://www.reuters.com/site-search/?query={q}"
-    css_selector: "a.media-story-card__title__3b4y3" # Selector for result links
-  - name: "The Verge Search"
-    url_template: "https://www.theverge.com/search?q={q}"
-    css_selector: "h2 a" # Selector for result links
+# rss_feeds:
+#   - "https://feeds.arstechnica.com/arstechnica/index"
+#   - "https://www.theverge.com/rss/index.xml"
+#   - "https://www.reuters.com/rssFeed/topNews"
+#   - "https://hnrss.org/frontpage"
+#   - "https://www.npr.org/rss/rss.php?id=1001"
+#   - "https://www.nature.com/subjects/artificial-intelligence.rss"
+#   - "https://ai.googleblog.com/feeds/posts/default"
+#   - "https://openai.com/blog/rss.xml"
+#   - "https://www.deepmind.com/blog/rss.xml"
+#   - "https://venturebeat.com/category/ai/feed"
+
+# site_search_templates:
+#   - domain: "arstechnica.com"
+#     template: "https://arstechnica.com/search/?query={q}"
+#     result_link_css: "ol.search-results li a"
+#   - domain: "theverge.com"
+#     template: "https://www.theverge.com/search?q={q}"
+#     result_link_css: "a[data-analytics-link='article']"
+#   - domain: "reuters.com"
+#     template: "https://www.reuters.com/site-search/?query={q}"
+#     result_link_css: "a.search-result-title"
+#   - domain: "npr.org"
+#     template: "https://www.npr.org/search?query={q}"
+#     result_link_css: "article .item-info a"
+#   - domain: "nature.com"
+#     template: "https://www.nature.com/search?q={q}"
+#     result_link_css: "li.app-article-list-row__item a"
+#   - domain: "venturebeat.com"
+#     template: "https://venturebeat.com/?s={q}"
+#     result_link_css: "h2 > a"
+#   - domain: "techcrunch.com"
+#     template: "https://techcrunch.com/search/{q}/"
+#     result_link_css: "a.post-block__title__link"
+
+# ingest_policy:
+#   min_reliability: 0.55
+#   freshness_days: 7
+#   blocklist_domains": ["x.com", "pinterest.com", "facebook.com"]
+#   allowlist_domains": []
+#   max_per_domain: 30
+#   dedupe_by": ["canonical_url", "sha1_text"]

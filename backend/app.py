@@ -1,9 +1,10 @@
 # backend/app.py
+import os
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import json
-import os
 
 from database import engine
 import models
@@ -117,6 +118,10 @@ async def list_workspaces_endpoint():
 async def delete_workspace_endpoint(workspace_id: str):
     executor.delete_workspace(workspace_id)
     return {"message": f"Workspace {workspace_id} deleted"}
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 @app.get("/")
 def root():
