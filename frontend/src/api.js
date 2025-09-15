@@ -1,7 +1,6 @@
     // frontend/src/api.js
     import axios from 'axios';
-
-    const API_URL = 'http://127.0.0.1:8000'; //backend url
+    import { API_URL } from './config';
 
     export const createSession = async () => {
       const response = await axios.post(`${API_URL}/session`);

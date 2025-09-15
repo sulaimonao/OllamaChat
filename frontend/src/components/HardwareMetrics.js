@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Paper } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import axios from 'axios';
+import { API_URL } from '../config';
 
 const HardwareMetrics = () => {
   const [metrics, setMetrics] = useState(null);
@@ -10,7 +11,7 @@ const HardwareMetrics = () => {
 
   const fetchMetrics = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/metrics');
+      const response = await axios.get(`${API_URL}/metrics`);
       setMetrics(response.data);
       setLoading(false);
     } catch (error) {

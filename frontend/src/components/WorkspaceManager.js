@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, List, ListItem, ListItemText, Button, TextField } from '@mui/material';
 import { createWorkspace, deleteWorkspace } from '../api';
-import {ListSubheader} from '@mui/material';
+import { ListSubheader } from '@mui/material';
 import axios from 'axios'; // Import axios
+import { API_URL } from '../config';
 
 const WorkspaceManager = () => {
   const [workspaces, setWorkspaces] = useState([]);
@@ -13,7 +14,7 @@ const WorkspaceManager = () => {
     // Fetch workspaces from the backend
     const fetchWorkspaces = async () => {
         try{
-            const response = await axios.get('http://127.0.0.1:8000/workspaces');
+            const response = await axios.get(`${API_URL}/workspaces`);
             setWorkspaces(response.data.workspaces);
         } catch (error) {
             console.error("Error fetching workspaces:", error);

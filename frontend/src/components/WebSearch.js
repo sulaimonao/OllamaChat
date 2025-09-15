@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, Typography, List, ListItem, Divider } from '@mui/material';
 import axios from 'axios';
+import { API_URL } from '../config';
 
 const WebSearch = ({ onAddMessage }) => {
   const [query, setQuery] = useState("");
@@ -11,7 +12,7 @@ const WebSearch = ({ onAddMessage }) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.get("http://127.0.0.1:8000/search", { params: { query } });
+      const response = await axios.get(`${API_URL}/search`, { params: { query } });
       const data = response.data;
       // Build a message that summarizes the search result.
       const searchMessage = `**Web Search Result for "${query}":**\n\nAbstract: ${data.abstract || "No abstract available."}\n\n` +

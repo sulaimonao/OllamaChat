@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import axios from 'axios';
+import { API_URL } from '../config';
 
 const FileUpload = ({ onAddMessage }) => {
   const [file, setFile] = useState(null);
@@ -18,7 +19,7 @@ const FileUpload = ({ onAddMessage }) => {
     formData.append('file', file);
 
     try {
-      const response = await axios.post("http://127.0.0.1:8000/upload", formData, {
+      const response = await axios.post(`${API_URL}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setUploadResult(response.data);
