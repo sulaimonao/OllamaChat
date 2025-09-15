@@ -17,19 +17,16 @@ from config import load_system_prompts, load_search_config
 from tools.search_engine import local_search, SearchEngine
 from tools.live_browse import (
     get_config,
-    rss_latest,
-    site_search,
     fetch,
     ingest,
-    RssRequest,
-    SiteSearchRequest,
     FetchRequest,
     IngestRequest,
-    RssResponse,
-    SiteSearchResponse,
     FetchResponseItem,
 )
 from tools.live_browse_utils import compute_reliability, pick_hubs
+from ..search.query_bundle import build_query_bundle, CONFIG as SEARCH_CFG
+from ..search.run_bundle import run_bundle
+from ..search.select_and_ingest import select_and_ingest
 from tools.multimodal import (
     image_analyze,
     audio_transcribe,
@@ -102,48 +99,33 @@ async def _extract_links_from_html(html_content: str, base_url: str) -> List[str
     return list(links)
 
 async def browse_first_pipeline(query: str):
-    config = get_config()
-    policy = config.get("ingest_policy", {})
-    path_used = "rss"
-    try:
-        rss_resp = await rss_latest(RssRequest(max_items=5))
-        urls = [i.url for i in rss_resp.items]
-    except Exception:
-        urls = []
+    bundle = build_query_bundle(query)
+    hits = run_bundle(bundle, SEARCH_CFG["limits"].get("per_query", 10))
+    accepted = select_and_ingest(query, hits)
+    path_used = "rss" if accepted else "homepage_fallback"
 
-    if not urls:
-        path_used = "site_search"
-        try:
-            ss_resp = await site_search(SiteSearchRequest(query=query, max_items=5))
-            urls = [i.url for i in ss_resp.items]
-        except Exception:
-            urls = []
-
-    if not urls:
-        path_used = "homepage_fallback"
+    if not accepted:
+        config = get_config()
+        policy = config.get("ingest_policy", {})
         urls = pick_hubs(query, config)[:5]
-
-    fetched = []
-    if urls:
         fetched = await fetch(FetchRequest(urls=urls))
-
-    accepted = []
-    for item in fetched:
-        d = item.dict()
-        score = compute_reliability(d, policy)
-        if score >= policy.get("min_reliability", 0):
-            d["score"] = score
-            accepted.append(d)
-
-    if accepted:
-        ingest_items = [{"url": d["url"], "title": d.get("title", ""), "text": d["text"]} for d in accepted]
-        await ingest(IngestRequest(items=ingest_items))
+        accepted = []
+        for item in fetched:
+            d = item.dict()
+            score = compute_reliability(d, policy)
+            if score >= policy.get("min_reliability", 0):
+                d["score"] = score
+                accepted.append(d)
+        if accepted:
+            ingest_items = [{"url": d["url"], "title": d.get("title", ""), "text": d["text"]} for d in accepted]
+            await ingest(IngestRequest(items=ingest_items))
 
     summary_lines = []
     sources = []
     for i, d in enumerate(accepted, 1):
-        summary_lines.append(f"{i}. {d['title']} ({d['url']})")
-        sources.append({"url": d['url'], "title": d['title']})
+        url = d.get("canonical_url", d.get("url"))
+        summary_lines.append(f"{i}. {d['title']} ({url})")
+        sources.append({"url": url, "title": d['title']})
     summary = "\n".join(summary_lines) if summary_lines else "No live results found."
     return summary, sources, path_used
 

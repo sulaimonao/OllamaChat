@@ -1,11 +1,19 @@
-# This file will contain the configuration for the search engine.
-# Example configuration:
-# allowlist:
-#   - "backend/local_data"
-# crawl_depth: 2
-# file_globs:
-#   - "*.md"
-#   - "*.txt"
-# max_file_size: 1000000 # 1MB
-# top_k: 8
-# enable_hybrid: true
+trusted_domains:
+  - nature.com
+  - reuters.com
+  - arxiv.org
+  - npr.org
+  - arstechnica.com
+  - theverge.com
+blocklist_domains:
+  - x.com
+  - facebook.com
+  - pinterest.com
+allow_query_domains:
+  - arxiv.org
+  - nature.com
+thresholds:
+  relevance: 0.70
+limits:
+  per_query: 10
+  per_domain: 30
