@@ -10,11 +10,11 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
 import hashlib
-from .search_engine import SearchEngine
+from tools.search_engine import SearchEngine
 from pathlib import Path
 import logging
 from urllib.parse import urlparse
-from ..search.urlnorm import canonicalize
+from search.urlnorm import canonicalize
 
 logger = logging.getLogger(__name__)
 

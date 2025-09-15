@@ -24,9 +24,9 @@ from tools.live_browse import (
     FetchResponseItem,
 )
 from tools.live_browse_utils import compute_reliability, pick_hubs
-from ..search.query_bundle import build_query_bundle, CONFIG as SEARCH_CFG
-from ..search.run_bundle import run_bundle
-from ..search.select_and_ingest import select_and_ingest
+from search.query_bundle import build_query_bundle, CONFIG as SEARCH_CFG
+from search.run_bundle import run_bundle
+from search.select_and_ingest import select_and_ingest
 from tools.multimodal import (
     image_analyze,
     audio_transcribe,
