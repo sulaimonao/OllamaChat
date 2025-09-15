@@ -3,8 +3,7 @@ import React from 'react';
 import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, ImageList, ImageListItem, ImageListItemBar, List, ListItem, ListItemText } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CodeBlock from './CodeBlock';
-
-const API_URL = 'http://127.0.0.1:8000';
+import { API_URL } from '../config';
 
 const VideoAnalysisViewer = ({ observation }) => {
     if (!observation) return null;

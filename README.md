@@ -130,6 +130,15 @@ Optional models and settings are configured in `backend/config/mm.yaml`. Endpoin
    ```
    The application will open in your browser at [http://localhost:3000](http://localhost:3000).
 
+#### Backend API URL
+
+The frontend reads the backend base URL from the `REACT_APP_API_URL` environment variable. During development it defaults to `http://127.0.0.1:8000`.
+You can override this by creating a `.env` file in the `frontend` directory or by setting the variable at build time:
+
+```bash
+REACT_APP_API_URL=https://your-backend.example.com npm start
+```
+
 ### Code Execution
 
 The backend can execute code inside sandboxed Docker containers.
