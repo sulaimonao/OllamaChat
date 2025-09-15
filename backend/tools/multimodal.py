@@ -28,9 +28,15 @@ class AudioTranscriptionResponse(BaseModel):
     segments: List[Dict[str, Any]]
     artifact_path: str
 
+class Scene(BaseModel):
+    t: float
+    path: str
+    caption: str | None = None
+    ocr: str | None = None
+
 class VideoAnalysisResponse(BaseModel):
     summary: str
-    scenes: List[Dict[str, Any]]
+    scenes: List[Scene]
     transcript: str
     artifact_path: str
 
@@ -204,7 +210,7 @@ async def video_analyze(file: UploadFile = File(...)):
     video_path_str = str(p)
 
     transcript = ""
-    scenes_data = []
+    scenes_data: List[Scene] = []
     summary = ""
 
     video_artifacts_dir = p.parent / p.stem
@@ -239,25 +245,24 @@ async def video_analyze(file: UploadFile = File(...)):
                 )
                 for (scene_num, _), img_path in image_filenames.items():
                     scene = scene_list[scene_num - 1]
-                    frame_info = {
-                        "t": scene[1].get_seconds(),
-                        "path": str(Path(img_path).relative_to(MM_DIR)),
-                        "ocr": "", "caption": ""
-                    }
+                    frame_info = Scene(
+                        t=scene[1].get_seconds(),
+                        path=str(Path(img_path).relative_to(MM_DIR)),
+                    )
                     if VIDEO_CONFIG.get("run_caption_on_keyframes", False) and blip_model:
                         raw_image = Image.open(img_path).convert("RGB")
                         inputs = blip_processor(raw_image, return_tensors="pt")
                         out = blip_model.generate(**inputs)
-                        frame_info["caption"] = blip_processor.decode(out[0], skip_special_tokens=True)
+                        frame_info.caption = blip_processor.decode(out[0], skip_special_tokens=True)
                     if VIDEO_CONFIG.get("run_ocr_on_keyframes", False) and ocr_reader:
                         result = ocr_reader.ocr(img_path, cls=True)
                         if result and result[0] is not None:
-                            frame_info["ocr"] = "\n".join([line[1][0] for line in result[0]])
+                            frame_info.ocr = "\n".join([line[1][0] for line in result[0]])
                     scenes_data.append(frame_info)
         except Exception:
             pass
 
-        summary = " ".join([f["caption"] for f in scenes_data if f["caption"]])
+        summary = " ".join([s.caption for s in scenes_data if s.caption])
 
     except Exception as e:
         summary = f"A fatal error occurred during video analysis: {e}"
