@@ -13,7 +13,8 @@ import hashlib
 from .search_engine import SearchEngine
 from pathlib import Path
 import logging
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
+from ..search.urlnorm import canonicalize
 
 logger = logging.getLogger(__name__)
 
@@ -130,18 +131,6 @@ def get_config():
     return DEFAULT_CONFIG
 
 
-def canonicalize_url(url: str) -> str:
-    """Normalize URL for deduplication."""
-    try:
-        parsed = urlparse(url)
-        scheme = parsed.scheme.lower()
-        netloc = parsed.netloc.lower()
-        path = parsed.path.lower()
-        if path.endswith('/') and path != '/':
-            path = path[:-1]
-        return urlunparse((scheme, netloc, path, '', '', ''))
-    except Exception:
-        return url
 
 # --- Endpoints ---
 
@@ -271,7 +260,7 @@ async def ingest(request: IngestRequest):
             url = item['url']
             text = item['text']
             title = item.get('title', '')
-            canonical_url = canonicalize_url(item.get('canonical_url', url))
+            canonical_url = canonicalize(item.get('canonical_url', url))
             sha1_text = hashlib.sha1(text.encode('utf-8')).hexdigest()
             url_hash = hashlib.sha1(canonical_url.encode('utf-8')).hexdigest()[:16]
             domain = urlparse(canonical_url).netloc or "unknown"
@@ -292,7 +281,7 @@ async def ingest(request: IngestRequest):
                                 break
                             meta_lines.append(line)
                     meta = yaml.safe_load(''.join(meta_lines)) or {}
-                    existing_canon.add(canonicalize_url(meta.get('canonical_url', '')))
+                    existing_canon.add(canonicalize(meta.get('canonical_url', '')))
                     existing_sha.add(meta.get('sha1_text'))
                 except Exception:
                     continue

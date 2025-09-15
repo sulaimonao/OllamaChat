@@ -263,12 +263,14 @@ async def video_analyze(file: UploadFile = File(...)):
             pass
 
         summary = " ".join([s.caption for s in scenes_data if s.caption])
+        if not scenes_data:
+            summary = "No keyframes detected; returning base metadata and audio transcript excerpts."
 
     except Exception as e:
         summary = f"A fatal error occurred during video analysis: {e}"
 
     return VideoAnalysisResponse(
-        summary=summary if summary else "No keyframes detected; only base metadata extracted.",
+        summary=summary,
         scenes=scenes_data,
         transcript=transcript,
         artifact_path=str(p.relative_to(MM_DIR))
