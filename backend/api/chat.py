@@ -27,13 +27,20 @@ from tools.live_browse_utils import compute_reliability, pick_hubs
 from search.query_bundle import build_query_bundle, CONFIG as SEARCH_CFG
 from search.run_bundle import run_bundle
 from search.select_and_ingest import select_and_ingest
-from tools.multimodal import (
-    image_analyze,
-    audio_transcribe,
-    video_analyze,
-    mm_ingest,
-    IngestPayload,
-)
+try:
+    from tools.multimodal import (
+        image_analyze,
+        audio_transcribe,
+        video_analyze,
+        mm_ingest,
+        IngestPayload,
+    )
+except Exception as exc:  # noqa: BLE001
+    # When multimodal dependencies are unavailable (e.g., during unit tests),
+    # provide no-op placeholders so that the chat API can still be imported.
+    image_analyze = audio_transcribe = video_analyze = mm_ingest = None
+    IngestPayload = None
+    logging.getLogger(__name__).warning("Multimodal tools disabled: %s", exc)
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
