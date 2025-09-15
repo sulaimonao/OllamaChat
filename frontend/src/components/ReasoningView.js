@@ -30,11 +30,12 @@ const VideoAnalysisViewer = ({ observation }) => {
                     <ImageList cols={3} rowHeight={164}>
                         {observation.scenes.map((frame, index) => {
                             const imageUrl = `${API_URL}/tools/mm/artifacts/${frame.path}`;
+                            const time = Number.isFinite(frame.t) ? frame.t.toFixed(2) : 'N/A';
                             return (
-                                <ImageListItem key={index}>
-                                    <img src={imageUrl} alt={`Keyframe at ${frame.t}s`} loading="lazy" />
+                                <ImageListItem key={index} sx={{ opacity: time === 'N/A' ? 0.5 : 1 }}>
+                                    <img src={imageUrl} alt={`Keyframe at ${time}s`} loading="lazy" />
                                     <ImageListItemBar
-                                        title={`Time: ${frame.t.toFixed(2)}s`}
+                                        title={`Time: ${time}s`}
                                         subtitle={<span>{frame.caption}</span>}
                                     />
                                 </ImageListItem>
