@@ -8,10 +8,10 @@ from urllib.parse import urlparse
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from ..tools.live_browse import fetch, ingest, FetchRequest, IngestRequest
-from ..tools.live_browse_utils import compute_reliability
-from .urlnorm import canonicalize
-from .query_bundle import CONFIG
+from tools.live_browse import fetch, ingest, FetchRequest, IngestRequest
+from tools.live_browse_utils import compute_reliability
+from search.urlnorm import canonicalize
+from search.query_bundle import CONFIG
 
 _model: SentenceTransformer | None = None
 
@@ -110,7 +110,7 @@ def select_and_ingest(user_query: str, hits: List[Dict]) -> List[Dict]:
 
 
 def fetch_config():
-    from ..tools.live_browse import get_config
+    from tools.live_browse import get_config
     cfg = get_config()
     return cfg.get("ingest_policy", {})
 
